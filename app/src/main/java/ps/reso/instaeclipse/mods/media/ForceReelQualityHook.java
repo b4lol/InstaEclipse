@@ -1,6 +1,6 @@
 package ps.reso.instaeclipse.mods.media;
 
-import org.luckypray.dexkit.DexKitBridge;
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
@@ -9,8 +9,8 @@ import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
@@ -56,7 +56,7 @@ public class ForceReelQualityHook {
     private static final String CACHE_GETTER_KEY = "ForceReelQuality_VideoVersionsGetter";
     private static final String CACHE_HEIGHT_KEY = "ForceReelQuality_HeightGetterName";
 
-    public void install(DexKitBridge bridge, ClassLoader classLoader) {
+    public void install(LazyDexKit bridge, ClassLoader classLoader) {
         try {
             Method videoVersionsGetter;
             String heightGetterName;
@@ -85,7 +85,7 @@ public class ForceReelQualityHook {
             videoVersionsGetter.setAccessible(true);
             String finalHeightGetterName = heightGetterName;
 
-            XposedBridge.hookMethod(videoVersionsGetter, new XC_MethodHook() {
+            HookBridge.hookMethod(videoVersionsGetter, new MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
                     if (FeatureFlags.forceReelQuality <= 0) return;
@@ -118,7 +118,7 @@ public class ForceReelQualityHook {
         }
     }
 
-    private static Method resolveVideoVersionsGetter(DexKitBridge bridge, ClassLoader classLoader) {
+    private static Method resolveVideoVersionsGetter(LazyDexKit bridge, ClassLoader classLoader) {
         for (String dictClass : DICT_CLASS_CANDIDATES) {
             try {
                 List<MethodData> results = bridge.findMethod(FindMethod.create()
@@ -141,7 +141,7 @@ public class ForceReelQualityHook {
         return null;
     }
 
-    private static String resolveHeightGetterName(DexKitBridge bridge, ClassLoader classLoader) {
+    private static String resolveHeightGetterName(LazyDexKit bridge, ClassLoader classLoader) {
         for (String versionClass : VIDEO_VERSION_CLASS_CANDIDATES) {
             try {
                 List<MethodData> results = bridge.findMethod(FindMethod.create()

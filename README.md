@@ -229,6 +229,7 @@ InstaEclipse is designed to keep up with Instagram automatically, but no module 
 | **Latest tested version** | `447.0.0.21.81` |
 | **Recommended build** | Beta or Alpha, from [APKMirror](https://www.apkmirror.com/apk/instagram/instagram-instagram/instagram-447-0-0-21-81-release/) |
 | **Auto-compatibility** | Yes, classes and methods are resolved at runtime with DexKit |
+| **Xposed API** | Modern [libxposed API](https://github.com/libxposed/api) **101** or newer. Frameworks that only support the legacy `de.robv` API can no longer load the module. |
 
 ---
 
@@ -240,7 +241,7 @@ Download the latest InstaEclipse APK from [**Releases**](https://github.com/ReSo
 
 ### Rooted, with LSPosed
 
-> Needs [JingMatrix's LSPosed](https://github.com/JingMatrix/LSPosed/releases/latest).
+> Needs a framework with libxposed API 101 support, such as [Vector](https://github.com/JingMatrix/Vector/releases/latest) (JingMatrix's continuation of LSPosed).
 
 1. **Install InstaEclipse.** Open the APK you downloaded and install it.
 2. **Enable the module.** Open LSPosed Manager, go to Modules, find InstaEclipse, enable it, and scope it to Instagram.
@@ -252,7 +253,7 @@ Download the latest InstaEclipse APK from [**Releases**](https://github.com/ReSo
 
 ### No root, with LSPatch
 
-> Needs [JingMatrix's LSPatch](https://github.com/JingMatrix/LSPatch/releases/latest).
+> Needs a current [JingMatrix LSPatch](https://github.com/JingMatrix/LSPatch/releases/latest) build (it embeds Vector and supports libxposed API 101).
 
 1. **Install InstaEclipse.** Open the APK and install it.
 2. **Install LSPatch** (the JingMatrix fork).
@@ -341,6 +342,8 @@ Pull requests, bug reports, feature ideas, and translations are all welcome.
 - Found a bug? [Open a bug report](https://github.com/ReSo7200/InstaEclipse/issues/new/choose)
 - Have an idea? [Submit a feature request](https://github.com/ReSo7200/InstaEclipse/issues/new/choose)
 - Want to build something? Fork the repo and open a PR
+- Read the [contributing guide](CONTRIBUTING.md) and the [architecture overview](docs/ARCHITECTURE.md)
+- Found a security issue? Please report it privately, see [SECURITY.md](SECURITY.md)
 
 ---
 

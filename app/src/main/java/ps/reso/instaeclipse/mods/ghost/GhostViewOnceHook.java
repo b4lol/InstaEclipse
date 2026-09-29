@@ -1,6 +1,6 @@
 package ps.reso.instaeclipse.mods.ghost;
 
-import org.luckypray.dexkit.DexKitBridge;
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.ClassDataList;
@@ -9,8 +9,8 @@ import org.luckypray.dexkit.result.MethodData;
 import java.lang.reflect.Method;
 import java.util.List;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.Xposed.Module;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
@@ -19,11 +19,11 @@ import ps.reso.instaeclipse.utils.log.ModuleLog;
 
 public class GhostViewOnceHook {
 
-    public void handleViewOnceBlock(DexKitBridge bridge) {
+    public void handleViewOnceBlock(LazyDexKit bridge) {
         if (DexKitCache.isCacheValid()) {
             Method cached = DexKitCache.loadMethod("GhostViewOnce", Module.hostClassLoader);
             if (cached != null) {
-                XposedBridge.hookMethod(cached, buildViewOnceHook());
+                HookBridge.hookMethod(cached, buildViewOnceHook());
                 ModuleLog.line("(InstaEclipse | ViewOnce): ✅ Hooked (cached): "
                         + cached.getDeclaringClass().getName() + "." + cached.getName());
                 FeatureStatusTracker.setHooked("GhostViewOnce");
@@ -58,7 +58,7 @@ public class GhostViewOnceHook {
      * Finds a (3-param, void) method matching the query and hooks it. Both anchors resolve
      * to a visual-only "report seen" handler, so unconditional setResult(null) is safe.
      */
-    private boolean tryHookViewOnce(DexKitBridge bridge, FindMethod query, String tag) {
+    private boolean tryHookViewOnce(LazyDexKit bridge, FindMethod query, String tag) {
         try {
             List<MethodData> methods = bridge.findMethod(query);
             for (MethodData method : methods) {
@@ -73,7 +73,7 @@ public class GhostViewOnceHook {
                 }
 
                 DexKitCache.saveMethod("GhostViewOnce", reflectMethod);
-                XposedBridge.hookMethod(reflectMethod, buildViewOnceHook());
+                HookBridge.hookMethod(reflectMethod, buildViewOnceHook());
                 ModuleLog.line("(InstaEclipse | ViewOnce): ✅ Hooked (" + tag + "): "
                         + method.getClassName() + "." + method.getName());
                 FeatureStatusTracker.setHooked("GhostViewOnce");
@@ -85,8 +85,8 @@ public class GhostViewOnceHook {
         return false;
     }
 
-    private static XC_MethodHook buildViewOnceHook() {
-        return new XC_MethodHook() {
+    private static MethodHook buildViewOnceHook() {
+        return new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 // The hooked method is the visual/view-once seen-reporter only (selected via

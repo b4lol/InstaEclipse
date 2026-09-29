@@ -3,9 +3,9 @@ package ps.reso.instaeclipse.mods.ghost;
 import android.view.Window;
 import android.view.WindowManager;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
 import ps.reso.instaeclipse.utils.log.ModuleLog;
@@ -24,8 +24,8 @@ public class ScreenshotPermissionHook {
     public void install(ClassLoader classLoader) {
         try {
             // Hook Window.setFlags(int flags, int mask)
-            XposedHelpers.findAndHookMethod(Window.class, "setFlags",
-                    int.class, int.class, new XC_MethodHook() {
+            HookHelpers.findAndHookMethod(Window.class, "setFlags",
+                    int.class, int.class, new MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
                             if (!FeatureFlags.allowScreenshots) return;
@@ -35,8 +35,8 @@ public class ScreenshotPermissionHook {
                     });
 
             // Hook Window.addFlags(int flags)
-            XposedHelpers.findAndHookMethod(Window.class, "addFlags",
-                    int.class, new XC_MethodHook() {
+            HookHelpers.findAndHookMethod(Window.class, "addFlags",
+                    int.class, new MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
                             if (!FeatureFlags.allowScreenshots) return;

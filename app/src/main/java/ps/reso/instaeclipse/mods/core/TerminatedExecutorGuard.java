@@ -2,8 +2,8 @@ package ps.reso.instaeclipse.mods.core;
 
 import java.util.concurrent.ThreadPoolExecutor;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.utils.log.ModuleLog;
 
 /**
@@ -29,11 +29,11 @@ public class TerminatedExecutorGuard {
 
     public void install(ClassLoader classLoader) {
         try {
-            XposedHelpers.findAndHookMethod(
+            HookHelpers.findAndHookMethod(
                     "java.util.concurrent.ThreadPoolExecutor$AbortPolicy", classLoader,
                     "rejectedExecution",
                     Runnable.class, ThreadPoolExecutor.class,
-                    new XC_MethodHook() {
+                    new MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
                             try {

@@ -29,7 +29,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.Xposed.Module;
 import ps.reso.instaeclipse.mods.devops.config.ConfigManager;
@@ -1427,17 +1427,18 @@ public class DialogUtils {
                     .setView(wrapPin(themed, cur))
                     .setNegativeButton(android.R.string.cancel, null)
                     .setPositiveButton(android.R.string.ok, (d, w) -> {
-                        if (ps.reso.instaeclipse.mods.ui.LockDirectMessagesHook.hashPass(cur.getText().toString())
-                                .equals(FeatureFlags.lockDirectPasscode)) {
-                            if (wholeApp) FeatureFlags.lockWholeApp = false;
-                            else          FeatureFlags.lockDirectMessages = false;
-                            suppressLockToggle = true;
-                            lockSwitch.setChecked(false);
-                            suppressLockToggle = false;
-                            SettingsManager.saveAllFlags();
-                        } else {
-                            Toast.makeText(context, I18n.t(context, R.string.ig_dialog_misc_lock_dms_wrong), Toast.LENGTH_SHORT).show();
-                        }
+                        ps.reso.instaeclipse.mods.ui.LockDirectMessagesHook.verifyPassAsync(cur.getText().toString(), ok -> {
+                            if (ok) {
+                                if (wholeApp) FeatureFlags.lockWholeApp = false;
+                                else          FeatureFlags.lockDirectMessages = false;
+                                suppressLockToggle = true;
+                                lockSwitch.setChecked(false);
+                                suppressLockToggle = false;
+                                SettingsManager.saveAllFlags();
+                            } else {
+                                Toast.makeText(context, I18n.t(context, R.string.ig_dialog_misc_lock_dms_wrong), Toast.LENGTH_SHORT).show();
+                            }
+                        });
                     })
                     .show();
         } catch (Throwable ignored) {}
@@ -1455,11 +1456,13 @@ public class DialogUtils {
                     .setView(wrapPin(themed, cur))
                     .setNegativeButton(android.R.string.cancel, null)
                     .setPositiveButton(android.R.string.ok, (d, w) -> {
-                        if (ps.reso.instaeclipse.mods.ui.LockDirectMessagesHook.hashPass(cur.getText().toString()).equals(existing)) {
-                            promptSetNewDmPasscode(context);
-                        } else {
-                            Toast.makeText(context, I18n.t(context, R.string.ig_dialog_misc_lock_dms_wrong), Toast.LENGTH_SHORT).show();
-                        }
+                        ps.reso.instaeclipse.mods.ui.LockDirectMessagesHook.verifyPassAsync(cur.getText().toString(), ok -> {
+                            if (ok) {
+                                promptSetNewDmPasscode(context);
+                            } else {
+                                Toast.makeText(context, I18n.t(context, R.string.ig_dialog_misc_lock_dms_wrong), Toast.LENGTH_SHORT).show();
+                            }
+                        });
                     })
                     .show();
         } catch (Throwable ignored) {}
@@ -1480,13 +1483,14 @@ public class DialogUtils {
                             FeatureFlags.lockDirectPasscode = "";
                             FeatureFlags.lockDirectSalt = "";
                             Toast.makeText(context, I18n.t(context, R.string.ig_dialog_misc_lock_dms_cleared), Toast.LENGTH_SHORT).show();
+                            SettingsManager.saveAllFlags();
                         } else {
-                            ps.reso.instaeclipse.mods.ui.LockDirectMessagesHook.newSalt(); // fresh salt per set
-                            FeatureFlags.lockDirectPasscode =
-                                    ps.reso.instaeclipse.mods.ui.LockDirectMessagesHook.hashPass(pass);
-                            Toast.makeText(context, I18n.t(context, R.string.ig_dialog_misc_lock_dms_saved), Toast.LENGTH_SHORT).show();
+                            // Fresh salt + PBKDF2 hash, computed off the UI thread.
+                            ps.reso.instaeclipse.mods.ui.LockDirectMessagesHook.setNewPassAsync(pass, () -> {
+                                Toast.makeText(context, I18n.t(context, R.string.ig_dialog_misc_lock_dms_saved), Toast.LENGTH_SHORT).show();
+                                SettingsManager.saveAllFlags();
+                            });
                         }
-                        SettingsManager.saveAllFlags();
                     })
                     .show();
         } catch (Throwable ignored) {}
@@ -2398,7 +2402,7 @@ public class DialogUtils {
     }
 
     /** This dialog runs inside Instagram's own process, so a drawable resource ID must be
-     *  resolved against our OWN module's resource table (via XModuleResources), not Instagram's
+     *  resolved against our OWN module's resource table (via ModuleResources), not Instagram's
      *  — ContextCompat.getDrawable(context, iconRes) would resolve against whatever Instagram's
      *  own resource table happens to have at that numeric ID, since IDs aren't portable across
      *  APKs. Same pattern already used by GhostDMMarkAsReadHook for its icon. */
@@ -2410,7 +2414,7 @@ public class DialogUtils {
 
     private static Drawable loadModuleIcon(int iconRes, int tintColor) {
         try {
-            Drawable icon = android.content.res.XModuleResources.createInstance(Module.moduleSourceDir, null)
+            Drawable icon = ps.reso.instaeclipse.hook.ModuleResources.get()
                     .getDrawable(iconRes, null);
             icon = icon.mutate();
             icon.setColorFilter(new android.graphics.PorterDuffColorFilter(tintColor, android.graphics.PorterDuff.Mode.SRC_IN));

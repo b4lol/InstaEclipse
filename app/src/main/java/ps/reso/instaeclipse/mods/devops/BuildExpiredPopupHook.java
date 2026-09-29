@@ -1,6 +1,6 @@
 package ps.reso.instaeclipse.mods.devops;
 
-import org.luckypray.dexkit.DexKitBridge;
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
@@ -8,8 +8,8 @@ import org.luckypray.dexkit.result.MethodData;
 import java.lang.reflect.Method;
 import java.util.List;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
@@ -20,13 +20,13 @@ public class BuildExpiredPopupHook {
     private static final String CACHE_SHOW  = "BuildExpiredShow";
     private static final String CACHE_CHECK = "BuildExpiredCheck";
 
-    public void install(DexKitBridge bridge, ClassLoader classLoader) {
+    public void install(LazyDexKit bridge, ClassLoader classLoader) {
 
         // No-op the method that shows the popup — blocks all three internal paths:
         //   1. lockout_active pref = true  → shows immediately
         //   2. snooze expired              → shows via snooze dialog
         //   3. age threshold exceeded      → shows force-update dialog
-        XC_MethodHook noOpHook = new XC_MethodHook() {
+        MethodHook noOpHook = new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (FeatureFlags.removeBuildExpiredPopup) {
@@ -38,7 +38,7 @@ public class BuildExpiredPopupHook {
         // Secondary defence: hook the snooze-expired boolean check.
         // Returns false so even if the show method is not found, the snooze
         // check keeps reporting "not expired".
-        XC_MethodHook falseHook = new XC_MethodHook() {
+        MethodHook falseHook = new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (FeatureFlags.removeBuildExpiredPopup) {
@@ -53,13 +53,13 @@ public class BuildExpiredPopupHook {
         if (DexKitCache.isCacheValid()) {
             Method show = DexKitCache.loadMethod(CACHE_SHOW, classLoader);
             if (show != null) {
-                XposedBridge.hookMethod(show, noOpHook);
+                HookBridge.hookMethod(show, noOpHook);
                 FeatureStatusTracker.setHooked("RemoveBuildExpiredPopup");
                 hookedMain = true;
             }
             Method check = DexKitCache.loadMethod(CACHE_CHECK, classLoader);
             if (check != null) {
-                XposedBridge.hookMethod(check, falseHook);
+                HookBridge.hookMethod(check, falseHook);
             }
             if (hookedMain) return;
         }
@@ -81,7 +81,7 @@ public class BuildExpiredPopupHook {
                 // Must take FragmentActivity as first arg; skip boolean-only variants
                 if (!params[0].getName().contains("FragmentActivity")) continue;
 
-                XposedBridge.hookMethod(method, noOpHook);
+                HookBridge.hookMethod(method, noOpHook);
                 DexKitCache.saveMethod(CACHE_SHOW, method);
                 ModuleLog.line("(IE|BuildExpired) ✅ hooked show-popup → "
                         + md.getClassName() + "." + md.getName());
@@ -104,7 +104,7 @@ public class BuildExpiredPopupHook {
                 Method method;
                 try { method = md.getMethodInstance(classLoader); } catch (Throwable e) { continue; }
 
-                XposedBridge.hookMethod(method, falseHook);
+                HookBridge.hookMethod(method, falseHook);
                 DexKitCache.saveMethod(CACHE_CHECK, method);
                 ModuleLog.line("(IE|BuildExpired) ✅ hooked snooze-check → "
                         + md.getClassName() + "." + md.getName());

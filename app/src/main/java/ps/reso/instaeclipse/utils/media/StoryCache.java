@@ -1,6 +1,6 @@
 package ps.reso.instaeclipse.utils.media;
 
-import android.app.AndroidAppHelper;
+import ps.reso.instaeclipse.hook.HostApp;
 import android.content.Context;
 
 import org.json.JSONArray;
@@ -49,7 +49,7 @@ public class StoryCache {
     private static final List<Entry> cache = new ArrayList<>();
     private static boolean loaded = false;
 
-    private static Context ctx() { return AndroidAppHelper.currentApplication(); }
+    private static Context ctx() { return HostApp.get(); }
     private static File indexFile() { Context c = ctx(); return c == null ? null : new File(c.getFilesDir(), INDEX); }
     /** Per-author folder: filesDir/ie_stories/<username>/ (falls back to "unknown"). */
     private static File storyDir(String author) {

@@ -8,8 +8,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.utils.core.SettingsManager;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
@@ -46,7 +46,7 @@ public class CustomFontHook {
     }
 
     private void installFontHooks(ClassLoader cl) {
-        XC_MethodHook replace = new XC_MethodHook() {
+        MethodHook replace = new MethodHook() {
             @Override protected void afterHookedMethod(MethodHookParam p) {
                 if (!(FeatureFlags.customFontEnabled || FeatureFlags.customEmojiEnabled)) return;
                 if (Boolean.TRUE.equals(loading.get())) return; // our own load
@@ -65,21 +65,21 @@ public class CustomFontHook {
             }
         };
         try {
-            XposedHelpers.findAndHookMethod(Typeface.class, "createFromAsset",
+            HookHelpers.findAndHookMethod(Typeface.class, "createFromAsset",
                     android.content.res.AssetManager.class, String.class, replace);
         } catch (Throwable ignored) {}
         try {
-            XposedHelpers.findAndHookMethod(Typeface.class, "createFromFile", File.class, replace);
+            HookHelpers.findAndHookMethod(Typeface.class, "createFromFile", File.class, replace);
         } catch (Throwable ignored) {}
         try {
-            XposedHelpers.findAndHookMethod(Typeface.class, "createFromFile", String.class, replace);
+            HookHelpers.findAndHookMethod(Typeface.class, "createFromFile", String.class, replace);
         } catch (Throwable ignored) {}
 
         // Catch-all: many IG text views get their typeface via Typeface.create(...) or cached
         // repository typefaces, which the createFrom* hooks miss. Hook TextView.setTypeface to force
         // our font on EVERY text view (this build renders icons as vector drawables, not an icon
         // font, so replacing text typefaces app-wide is safe). beforeHook swaps the arg.
-        XC_MethodHook setTf1 = new XC_MethodHook() {
+        MethodHook setTf1 = new MethodHook() {
             @Override protected void beforeHookedMethod(MethodHookParam p) {
                 if (!(FeatureFlags.customFontEnabled || FeatureFlags.customEmojiEnabled) || Boolean.TRUE.equals(loading.get())) return;
                 Typeface tf = getActiveTypeface();
@@ -87,11 +87,11 @@ public class CustomFontHook {
             }
         };
         try {
-            XposedHelpers.findAndHookMethod(android.widget.TextView.class, "setTypeface", Typeface.class, setTf1);
+            HookHelpers.findAndHookMethod(android.widget.TextView.class, "setTypeface", Typeface.class, setTf1);
         } catch (Throwable ignored) {}
         // setTypeface(Typeface, int) applies a style over a base family; force our font as the base
         // and let the style (bold/italic) be derived from it.
-        XC_MethodHook setTf2 = new XC_MethodHook() {
+        MethodHook setTf2 = new MethodHook() {
             @Override protected void beforeHookedMethod(MethodHookParam p) {
                 if (!(FeatureFlags.customFontEnabled || FeatureFlags.customEmojiEnabled) || Boolean.TRUE.equals(loading.get())) return;
                 Typeface tf = getActiveTypeface();
@@ -99,14 +99,14 @@ public class CustomFontHook {
             }
         };
         try {
-            XposedHelpers.findAndHookMethod(android.widget.TextView.class, "setTypeface", Typeface.class, int.class, setTf2);
+            HookHelpers.findAndHookMethod(android.widget.TextView.class, "setTypeface", Typeface.class, int.class, setTf2);
         } catch (Throwable ignored) {}
 
         // Deepest catch-all: DM chats and post captions are Litho/Compose text, drawn via a Paint
         // (not a TextView), so the TextView hooks miss them. Force our font at Paint.setTypeface —
         // this reaches every text-drawing path in the app. (Icons are vector drawables on this
         // build, so this doesn't affect glyph rendering.)
-        XC_MethodHook paintTf = new XC_MethodHook() {
+        MethodHook paintTf = new MethodHook() {
             @Override protected void beforeHookedMethod(MethodHookParam p) {
                 if (!(FeatureFlags.customFontEnabled || FeatureFlags.customEmojiEnabled) || Boolean.TRUE.equals(loading.get())) return;
                 Typeface tf = getActiveTypeface();
@@ -114,13 +114,13 @@ public class CustomFontHook {
             }
         };
         try {
-            XposedHelpers.findAndHookMethod(android.graphics.Paint.class, "setTypeface", Typeface.class, paintTf);
+            HookHelpers.findAndHookMethod(android.graphics.Paint.class, "setTypeface", Typeface.class, paintTf);
         } catch (Throwable ignored) {}
 
         // Receive the picked font file (launched from the module's "Pick font file" action).
         try {
-            XposedHelpers.findAndHookMethod(Activity.class, "onActivityResult",
-                    int.class, int.class, Intent.class, new XC_MethodHook() {
+            HookHelpers.findAndHookMethod(Activity.class, "onActivityResult",
+                    int.class, int.class, Intent.class, new MethodHook() {
                         @Override protected void afterHookedMethod(MethodHookParam p) {
                             try {
                                 int req = (int) p.args[0];
@@ -298,13 +298,13 @@ public class CustomFontHook {
      */
     private void installEmojiHook(final ClassLoader cl) {
         try {
-            Class<?> c00aC = XposedHelpers.findClass("X.00aC", cl);       // metadata loader
-            final Class<?> c00Zv = XposedHelpers.findClass("X.00Zv", cl); // callback
-            XposedHelpers.findAndHookMethod(c00aC, "EXz", c00Zv, new XC_MethodHook() {
+            Class<?> c00aC = HookHelpers.findClass("X.00aC", cl);       // metadata loader
+            final Class<?> c00Zv = HookHelpers.findClass("X.00Zv", cl); // callback
+            HookHelpers.findAndHookMethod(c00aC, "EXz", c00Zv, new MethodHook() {
                 @Override protected void beforeHookedMethod(MethodHookParam p) {
                     if (!FeatureFlags.customEmojiEnabled) return;
                     try {
-                        XposedHelpers.callMethod(p.args[0], "A01", new Exception("ie: emoji via fallback")); // onFailed
+                        HookHelpers.callMethod(p.args[0], "A01", new Exception("ie: emoji via fallback")); // onFailed
                         ModuleLog.line("(IE|Emoji) EmojiCompat disabled — emoji via font fallback");
                     } catch (Throwable ignored) {}
                     p.setResult(null);

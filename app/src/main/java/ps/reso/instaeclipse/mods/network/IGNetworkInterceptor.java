@@ -4,10 +4,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URI;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
-import de.robv.android.xposed.callbacks.XC_LoadPackage;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.mods.misc.FollowStatusHook;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
@@ -43,9 +42,8 @@ public class IGNetworkInterceptor {
         }
     }
 
-    public void handleInterceptor(XC_LoadPackage.LoadPackageParam lpparam) {
+    public void handleInterceptor(ClassLoader classLoader) {
         try {
-            ClassLoader classLoader = lpparam.classLoader;
 
             // Locate the TigonServiceLayer class dynamically
             Class<?> tigonClass = classLoader.loadClass("com.instagram.api.tigon.TigonServiceLayer");
@@ -80,13 +78,13 @@ public class IGNetworkInterceptor {
             // If classes and fields are resolved, hook the method
             if (random_param_1 != null && random_param_2 != null && random_param_3 != null && uriFieldName != null) {
                 String finalUriFieldName = uriFieldName;
-                XposedHelpers.findAndHookMethod("com.instagram.api.tigon.TigonServiceLayer", classLoader, "startRequest",
-                        random_param_1, random_param_2, random_param_3, new XC_MethodHook() {
+                HookHelpers.findAndHookMethod("com.instagram.api.tigon.TigonServiceLayer", classLoader, "startRequest",
+                        random_param_1, random_param_2, random_param_3, new MethodHook() {
                             @Override
                             protected void beforeHookedMethod(MethodHookParam param) {
                               try {
                                 Object requestObj = param.args[0];
-                                URI uri = (URI) XposedHelpers.getObjectField(requestObj, finalUriFieldName);
+                                URI uri = (URI) HookHelpers.getObjectField(requestObj, finalUriFieldName);
 
                                 if (uri != null && uri.getPath() != null) {
                                     final String host = uri.getHost(); // null for opaque/relative URIs — guard before use

@@ -1,6 +1,6 @@
 package ps.reso.instaeclipse.mods.misc;
 
-import android.app.AndroidAppHelper;
+import ps.reso.instaeclipse.hook.HostApp;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
@@ -13,8 +13,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.utils.i18n.I18n;
 import ps.reso.instaeclipse.utils.toast.CustomToast;
@@ -73,7 +73,7 @@ public class FollowStatusHook {
             if (java.lang.reflect.Modifier.isStatic(m.getModifiers())) continue;
             if (m.getParameterCount() == 0) continue;
             try {
-                XposedBridge.hookMethod(m, new XC_MethodHook() {
+                HookBridge.hookMethod(m, new MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam p) {
                         int hash = System.identityHashCode(p.thisObject);
@@ -177,7 +177,7 @@ public class FollowStatusHook {
                 String currentTarget = FollowIndicatorTracker.currentlyViewedUserId;
                 if (currentTarget == null || !userId.equals(currentTarget)) return;
 
-                Context ctx = AndroidAppHelper.currentApplication().getApplicationContext();
+                Context ctx = HostApp.get().getApplicationContext();
                 String statusStr = followedBy
                         ? I18n.t(ctx, R.string.ig_toast_follows_you)
                         : I18n.t(ctx, R.string.ig_toast_not_follows_you);

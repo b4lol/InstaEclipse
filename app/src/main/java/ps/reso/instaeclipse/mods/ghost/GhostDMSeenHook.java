@@ -1,6 +1,6 @@
 package ps.reso.instaeclipse.mods.ghost;
 
-import org.luckypray.dexkit.DexKitBridge;
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.ClassDataList;
@@ -10,8 +10,8 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.List;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.Xposed.Module;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
@@ -22,8 +22,8 @@ import ps.reso.instaeclipse.utils.log.ModuleLog;
  * Handles Ghost Mode for Direct Messages (DM) in Instagram.
  */
 public class GhostDMSeenHook {
-    public void handleSeenBlock(DexKitBridge bridge) {
-        XC_MethodHook hook = new XC_MethodHook() {
+    public void handleSeenBlock(LazyDexKit bridge) {
+        MethodHook hook = new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (FeatureFlags.isGhostSeen) param.setResult(null);
@@ -34,7 +34,7 @@ public class GhostDMSeenHook {
         if (DexKitCache.isCacheValid()) {
             Method cached = DexKitCache.loadMethod("GhostSeen", Module.hostClassLoader);
             if (cached != null) {
-                XposedBridge.hookMethod(cached, hook);
+                HookBridge.hookMethod(cached, hook);
                 ModuleLog.line("(InstaEclipse | GhostModeSeen): ✅ Hooked: " + cached.getDeclaringClass().getName() + "." + cached.getName());
                 FeatureStatusTracker.setHooked("GhostSeen");
                 return;
@@ -71,7 +71,7 @@ public class GhostDMSeenHook {
 
                     try {
                         DexKitCache.saveMethod("GhostSeen", reflectMethod);
-                        XposedBridge.hookMethod(reflectMethod, hook);
+                        HookBridge.hookMethod(reflectMethod, hook);
 
                         ModuleLog.line("(InstaEclipse | GhostModeSeen): ✅ Hooked: " +
                                 method.getClassName() + "." + method.getName());

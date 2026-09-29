@@ -1,10 +1,10 @@
 package ps.reso.instaeclipse.mods.media;
 
-import android.app.AndroidAppHelper;
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
+import ps.reso.instaeclipse.hook.HostApp;
 import android.content.Context;
 import android.widget.Toast;
 
-import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
@@ -21,8 +21,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
@@ -80,7 +80,7 @@ public class PostDownloadContextMenuHook {
 
     // ── Entry point ──────────────────────────────────────────────────────────
 
-    public void install(DexKitBridge bridge, ClassLoader classLoader) {
+    public void install(LazyDexKit bridge, ClassLoader classLoader) {
         loadMediaOptionEnum(classLoader);
         findCreatorClassAndAddButtonMethod(bridge, classLoader);
         installAddButtonHook();
@@ -119,7 +119,7 @@ public class PostDownloadContextMenuHook {
     // Pass 2: findMethod(declaredClass, returnType=void) → filter for the static method
     //         that takes MediaOption$Option + ArrayList as params.
 
-    private static void findCreatorClassAndAddButtonMethod(DexKitBridge bridge,
+    private static void findCreatorClassAndAddButtonMethod(LazyDexKit bridge,
                                                             ClassLoader classLoader) {
         // Cache hit: restore addButtonMethod and parameter indices without DexKit
         if (DexKitCache.isCacheValid()) {
@@ -255,7 +255,7 @@ public class PostDownloadContextMenuHook {
             return;
         }
 
-        XposedBridge.hookMethod(addButtonMethod, new XC_MethodHook() {
+        HookBridge.hookMethod(addButtonMethod, new MethodHook() {
 
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
@@ -300,12 +300,12 @@ public class PostDownloadContextMenuHook {
     }
 
     /** Adds one button (Download / Copy Media Link) to the menu currently being built. */
-    private static void injectRow(XC_MethodHook.MethodHookParam param, Object optionValue, int labelResId) {
+    private static void injectRow(MethodHook.MethodHookParam param, Object optionValue, int labelResId) {
         Object[] callArgs = new Object[addButtonMethod.getParameterCount()];
         System.arraycopy(param.args, 0, callArgs, 0, callArgs.length);
         callArgs[idxEnum]   = enumNormalValue;
         callArgs[idxOption] = optionValue;
-        callArgs[idxText]   = I18n.t(AndroidAppHelper.currentApplication(), labelResId);
+        callArgs[idxText]   = I18n.t(HostApp.get(), labelResId);
 
         sAddingDownload.set(true);
         try {
@@ -322,8 +322,8 @@ public class PostDownloadContextMenuHook {
     // DexKit finds void methods with sole param MediaOption$Option — a stable unobfuscated type.
     // No string constants used, so obfuscation of surrounding code doesn't matter.
 
-    private static void installClickHandlerHook(DexKitBridge bridge, ClassLoader classLoader) {
-        XC_MethodHook clickHook = new XC_MethodHook() {
+    private static void installClickHandlerHook(LazyDexKit bridge, ClassLoader classLoader) {
+        MethodHook clickHook = new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.enablePostDownload && !FeatureFlags.copyMediaLink) return;
@@ -337,7 +337,7 @@ public class PostDownloadContextMenuHook {
         if (DexKitCache.isCacheValid()) {
             List<Method> cached = DexKitCache.loadMethods("PostDownload_click_v2", classLoader);
             if (cached != null && !cached.isEmpty()) {
-                for (Method m : cached) XposedBridge.hookMethod(m, clickHook);
+                for (Method m : cached) HookBridge.hookMethod(m, clickHook);
                 return;
             }
         }
@@ -377,7 +377,7 @@ public class PostDownloadContextMenuHook {
                 try {
                     if (hasPublicCandidate && Modifier.isPrivate(m.getModifiers())) continue;
                     m.setAccessible(true);
-                    XposedBridge.hookMethod(m, clickHook);
+                    HookBridge.hookMethod(m, clickHook);
                     hooked.add(m);
                 } catch (Throwable t) {
                     ModuleLog.line("(IE|Post) ❌ Failed to hook click candidate: " + t);
@@ -405,8 +405,8 @@ public class PostDownloadContextMenuHook {
     // references these three particular MediaOption$Option constants together.
     // We patch its return value to also include DOWNLOAD so our entry survives.
 
-    private static void installAllowlistPatchHook(DexKitBridge bridge, ClassLoader classLoader) {
-        XC_MethodHook allowlistHook = new XC_MethodHook() {
+    private static void installAllowlistPatchHook(LazyDexKit bridge, ClassLoader classLoader) {
+        MethodHook allowlistHook = new MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
                 try {
@@ -432,7 +432,7 @@ public class PostDownloadContextMenuHook {
         if (DexKitCache.isCacheValid()) {
             Method cached = DexKitCache.loadMethod("PostDownload_allowlist", classLoader);
             if (cached != null) {
-                XposedBridge.hookMethod(cached, allowlistHook);
+                HookBridge.hookMethod(cached, allowlistHook);
                 return;
             }
         }
@@ -457,7 +457,7 @@ public class PostDownloadContextMenuHook {
 
             Method target = results.get(0).getMethodInstance(classLoader);
             target.setAccessible(true);
-            XposedBridge.hookMethod(target, allowlistHook);
+            HookBridge.hookMethod(target, allowlistHook);
             DexKitCache.saveMethod("PostDownload_allowlist", target);
             ModuleLog.line("(IE|Post) ✅ Allowlist patch hooked: " +
                     target.getDeclaringClass().getName() + "." + target.getName());
@@ -469,7 +469,7 @@ public class PostDownloadContextMenuHook {
 
     // ── Click dispatch ────────────────────────────────────────────────────────
 
-    private static void onOptionClicked(XC_MethodHook.MethodHookParam param) {
+    private static void onOptionClicked(MethodHook.MethodHookParam param) {
         try {
             if (Boolean.TRUE.equals(sAddingDownload.get())) return;
 

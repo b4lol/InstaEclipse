@@ -53,6 +53,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
+import ps.reso.instaeclipse.utils.core.CommonUtils;
+import ps.reso.instaeclipse.utils.core.IpcSecurity;
+import ps.reso.instaeclipse.utils.core.RemotePrefs;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.mods.location.LocationPickerActivity;
 import ps.reso.instaeclipse.ui.theme.ThemeCustomizerActivity;
@@ -77,10 +80,14 @@ public class FeaturesFragment extends Fragment {
     // STAGING SYSTEM: Holds changes before applying
     private final Map<String, Boolean> stagedChanges = new HashMap<>();
 
+    /** Nonce of the outstanding ACTION_REQUEST_PREFS; replies without it are dropped. */
+    private String prefsNonce;
+
     private final BroadcastReceiver prefsReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if ("ps.reso.instaeclipse.ACTION_SEND_PREFS".equals(intent.getAction())) {
+            if ("ps.reso.instaeclipse.ACTION_SEND_PREFS".equals(intent.getAction())
+                    && IpcSecurity.nonceMatches(prefsNonce, intent)) {
                 Bundle bundle = intent.getExtras();
                 if (bundle != null) {
                     // If we just set the path locally (via dirPickerLauncher), the incoming
@@ -89,6 +96,7 @@ public class FeaturesFragment extends Fragment {
                     SharedPreferences.Editor editor = localCache.edit();
                     if (suppressPath) editor.remove("pathJustSetLocally");
                     for (String key : bundle.keySet()) {
+                        if (IpcSecurity.EXTRA_NONCE.equals(key)) continue;
                         Object value = bundle.get(key);
                         if (value instanceof Boolean) {
                             editor.putBoolean(key, (Boolean) value);
@@ -135,7 +143,7 @@ public class FeaturesFragment extends Fragment {
                         Intent intent = new Intent("ps.reso.instaeclipse.ACTION_UPDATE_PREF");
                         intent.putExtra("key", key);
                         intent.putExtra("value", (boolean) (Boolean) val);
-                        requireContext().sendBroadcast(intent);
+                        CommonUtils.broadcastToInstagram(requireContext(), intent);
                     }
                 }
                 editor.apply();
@@ -159,17 +167,16 @@ public class FeaturesFragment extends Fragment {
                     ed.putString("spoofLat", String.valueOf(lat));
                     ed.putString("spoofLng", String.valueOf(lng));
                     ed.commit();
-                    makeLocalCacheWorldReadable();
 
                     Intent b1 = new Intent("ps.reso.instaeclipse.ACTION_UPDATE_PREF_STRING");
                     b1.putExtra("key", "spoofLat");
                     b1.putExtra("value", String.valueOf(lat));
-                    requireContext().sendBroadcast(b1);
+                    CommonUtils.broadcastToInstagram(requireContext(), b1);
 
                     Intent b2 = new Intent("ps.reso.instaeclipse.ACTION_UPDATE_PREF_STRING");
                     b2.putExtra("key", "spoofLng");
                     b2.putExtra("value", String.valueOf(lng));
-                    requireContext().sendBroadcast(b2);
+                    CommonUtils.broadcastToInstagram(requireContext(), b2);
 
                     if ("location".equals(currentMenu)) loadLocationMenu();
                 });
@@ -196,24 +203,24 @@ public class FeaturesFragment extends Fragment {
 
                 // Set flag + save new path atomically so the incoming ACTION_SEND_PREFS
                 // reply (triggered by onResume's ACTION_REQUEST_PREFS) doesn't overwrite us.
-                // commit() (not apply()) ensures the XML is flushed to disk before we make it
-                // world-readable so the module's XSharedPreferences can pick it up on cold start.
+                // commit() (not apply()) so the value is on disk before it is mirrored to the
+                // framework's remote preferences, which the module reads on a cold start.
                 SharedPreferences.Editor editor = localCache.edit();
                 editor.putBoolean("pathJustSetLocally", true);
                 editor.putString("downloaderCustomUri", uriString);
                 editor.putString("downloaderCustomPath", path);
                 editor.commit();
-                makeLocalCacheWorldReadable();
+                RemotePrefs.syncDownloaderFolder();
 
                 Intent intentUri = new Intent("ps.reso.instaeclipse.ACTION_UPDATE_PREF_STRING");
                 intentUri.putExtra("key", "downloaderCustomUri");
                 intentUri.putExtra("value", uriString);
-                requireContext().sendBroadcast(intentUri);
+                CommonUtils.broadcastToInstagram(requireContext(), intentUri);
 
                 Intent intentPath = new Intent("ps.reso.instaeclipse.ACTION_UPDATE_PREF_STRING");
                 intentPath.putExtra("key", "downloaderCustomPath");
                 intentPath.putExtra("value", path);
-                requireContext().sendBroadcast(intentPath);
+                CommonUtils.broadcastToInstagram(requireContext(), intentPath);
 
                 Toast.makeText(requireContext(), getString(R.string.ig_toast_download_folder_updated), Toast.LENGTH_SHORT).show();
 
@@ -1041,12 +1048,11 @@ public class FeaturesFragment extends Fragment {
                     SharedPreferences.Editor ed = localCache.edit();
                     ed.putInt("forceReelQuality", value);
                     ed.commit();
-                    makeLocalCacheWorldReadable();
 
                     Intent b = new Intent("ps.reso.instaeclipse.ACTION_UPDATE_PREF_INT");
                     b.putExtra("key", "forceReelQuality");
                     b.putExtra("value", value);
-                    requireContext().sendBroadcast(b);
+                    CommonUtils.broadcastToInstagram(requireContext(), b);
 
                     dialog.dismiss();
                     loadQualityMenu();
@@ -1098,20 +1104,6 @@ public class FeaturesFragment extends Fragment {
     // TOOLS ACTIONS & HANDLERS
     // =========================================================
 
-    /**
-     * Makes the localCache SharedPreferences file world-readable so the module can
-     * access it via XSharedPreferences on a cold Instagram start (when the sync
-     * broadcast was never delivered because Instagram wasn't running at the time).
-     * Apps are allowed to change permissions on their own files.
-     */
-    private void makeLocalCacheWorldReadable() {
-        try {
-            java.io.File prefsFile = new java.io.File(
-                    requireContext().getApplicationInfo().dataDir + "/shared_prefs/instaeclipse_cache.xml");
-            prefsFile.setReadable(true, false);
-        } catch (Throwable ignored) {}
-    }
-
     private void pickDownloadFolder() {
         dirPickerLauncher.launch(null);
     }
@@ -1122,17 +1114,17 @@ public class FeaturesFragment extends Fragment {
         editor.putString("downloaderCustomUri", "");
         editor.putString("downloaderCustomPath", "");
         editor.commit();
-        makeLocalCacheWorldReadable();
+        RemotePrefs.syncDownloaderFolder();
 
         Intent intentUri = new Intent("ps.reso.instaeclipse.ACTION_UPDATE_PREF_STRING");
         intentUri.putExtra("key", "downloaderCustomUri");
         intentUri.putExtra("value", "");
-        requireContext().sendBroadcast(intentUri);
+        CommonUtils.broadcastToInstagram(requireContext(), intentUri);
 
         Intent intentPath = new Intent("ps.reso.instaeclipse.ACTION_UPDATE_PREF_STRING");
         intentPath.putExtra("key", "downloaderCustomPath");
         intentPath.putExtra("value", "");
-        requireContext().sendBroadcast(intentPath);
+        CommonUtils.broadcastToInstagram(requireContext(), intentPath);
 
         Toast.makeText(requireContext(), getString(R.string.ig_toast_download_folder_reset), Toast.LENGTH_SHORT).show();
 
@@ -1179,9 +1171,11 @@ public class FeaturesFragment extends Fragment {
     }
 
     private void exportDevConfig() {
+        final String nonce = IpcSecurity.newNonce();
         BroadcastReceiver configReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
+                if (!IpcSecurity.nonceMatches(nonce, intent)) return;
                 context.unregisterReceiver(this);
                 Activity activity = getActivity();
                 if (activity == null || activity.isFinishing()) return;
@@ -1202,12 +1196,9 @@ public class FeaturesFragment extends Fragment {
             }
         };
         IntentFilter filter = new IntentFilter("ps.reso.instaeclipse.ACTION_SEND_CONFIG");
-        if (Build.VERSION.SDK_INT >= 33) {
-            requireContext().registerReceiver(configReceiver, filter, Context.RECEIVER_EXPORTED);
-        } else {
-            ContextCompat.registerReceiver(requireContext(), configReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
-        }
+        IpcSecurity.registerReplyReceiver(requireContext(), configReceiver, filter);
         Intent request = new Intent("ps.reso.instaeclipse.ACTION_EXPORT_CONFIG");
+        request.putExtra(IpcSecurity.EXTRA_NONCE, nonce);
         request.setPackage("com.instagram.android");
         requireContext().sendBroadcast(request);
     }
@@ -1276,7 +1267,7 @@ public class FeaturesFragment extends Fragment {
             Intent intent = new Intent("ps.reso.instaeclipse.ACTION_UPDATE_PREF");
             intent.putExtra("key", key);
             intent.putExtra("value", value);
-            requireContext().sendBroadcast(intent);
+            CommonUtils.broadcastToInstagram(requireContext(), intent);
         }
         editor.apply();
         stagedChanges.clear();
@@ -1298,12 +1289,13 @@ public class FeaturesFragment extends Fragment {
     public void onResume() {
         super.onResume();
         IntentFilter filter = new IntentFilter("ps.reso.instaeclipse.ACTION_SEND_PREFS");
-        if (Build.VERSION.SDK_INT >= 33) {
-            requireContext().registerReceiver(prefsReceiver, filter, Context.RECEIVER_EXPORTED);
-        } else {
-            ContextCompat.registerReceiver(requireContext(), prefsReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
-        }
-        requireContext().sendBroadcast(new Intent("ps.reso.instaeclipse.ACTION_REQUEST_PREFS"));
+        // Exported on every API level: the reply comes from Instagram's uid. (The old
+        // RECEIVER_NOT_EXPORTED branch silently dropped replies on Android 9-12L.)
+        IpcSecurity.registerReplyReceiver(requireContext(), prefsReceiver, filter);
+        prefsNonce = IpcSecurity.newNonce();
+        Intent request = new Intent("ps.reso.instaeclipse.ACTION_REQUEST_PREFS");
+        request.putExtra(IpcSecurity.EXTRA_NONCE, prefsNonce);
+        CommonUtils.broadcastToInstagram(requireContext(), request);
     }
 
     @Override

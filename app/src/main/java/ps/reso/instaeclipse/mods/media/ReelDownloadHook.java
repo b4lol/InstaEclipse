@@ -1,12 +1,12 @@
 package ps.reso.instaeclipse.mods.media;
 
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import android.app.Activity;
 import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
 
-import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 
@@ -15,8 +15,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
@@ -38,7 +38,7 @@ public class ReelDownloadHook {
     private static Field cachedOuterField = null;
     private static Field cachedInnerField = null;
 
-    public void install(DexKitBridge bridge, ClassLoader classLoader) {
+    public void install(LazyDexKit bridge, ClassLoader classLoader) {
         installNativeDownloadGateUnlock(bridge, classLoader);
         installReduceOptionsListPatch(bridge, classLoader);
 
@@ -49,7 +49,7 @@ public class ReelDownloadHook {
                 hookMethod = cached;
                 cached.setAccessible(true);
                 FeatureStatusTracker.setHooked("ReelDownload");
-                XposedBridge.hookMethod(cached, new XC_MethodHook() {
+                HookBridge.hookMethod(cached, new MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) {
                         if (!FeatureFlags.enableReelDownload) return;
@@ -119,7 +119,7 @@ public class ReelDownloadHook {
             DexKitCache.saveMethod("ReelDownload", target);
             FeatureStatusTracker.setHooked("ReelDownload");
 
-            XposedBridge.hookMethod(target, new XC_MethodHook() {
+            HookBridge.hookMethod(target, new MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
                     if (!FeatureFlags.enableReelDownload) return;
@@ -165,7 +165,7 @@ public class ReelDownloadHook {
     // (LX/5RY;->A0Q -> LX/QIy;->A04) used for every other option here — same
     // shared row primitive the post menu uses, so PostDownloadContextMenuHook's
     // app-wide click-handler hook already covers whatever dispatches its click.
-    private static void installReduceOptionsListPatch(DexKitBridge bridge, ClassLoader classLoader) {
+    private static void installReduceOptionsListPatch(LazyDexKit bridge, ClassLoader classLoader) {
         try {
             Object downloadOption = null, copyLinkOption = null;
             Class<?> optionClass = classLoader.loadClass("com.instagram.feed.media.mediaoption.MediaOption$Option");
@@ -181,7 +181,7 @@ public class ReelDownloadHook {
             final Object download = downloadOption;
             final Object copyLink = copyLinkOption;   // #117 — clicks handled by PostDownloadContextMenuHook
 
-            XC_MethodHook hook = new XC_MethodHook() {
+            MethodHook hook = new MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
                     boolean wantDl = FeatureFlags.enableReelDownload && download != null;
@@ -204,7 +204,7 @@ public class ReelDownloadHook {
             if (DexKitCache.isCacheValid()) {
                 Method cached = DexKitCache.loadMethod("ReelOptionsListBuilder", classLoader);
                 if (cached != null) {
-                    XposedBridge.hookMethod(cached, hook);
+                    HookBridge.hookMethod(cached, hook);
                     return;
                 }
             }
@@ -223,7 +223,7 @@ public class ReelDownloadHook {
 
             Method target = methods.get(0).getMethodInstance(classLoader);
             target.setAccessible(true);
-            XposedBridge.hookMethod(target, hook);
+            HookBridge.hookMethod(target, hook);
             DexKitCache.saveMethod("ReelOptionsListBuilder", target);
             FeatureStatusTracker.setHooked("ReelDownload");
             ModuleLog.line("(IE|Reel) ✅ Options-list patch hooked: " +
@@ -244,7 +244,7 @@ public class ReelDownloadHook {
     // wired to Instagram's own save-to-camera-roll flow. Bypassing the two gates is
     // far simpler and more robust than reconstructing that row/click machinery
     // ourselves. Found via each gate's distinct hardcoded MobileConfig param ID.
-    private static void installNativeDownloadGateUnlock(DexKitBridge bridge, ClassLoader classLoader) {
+    private static void installNativeDownloadGateUnlock(LazyDexKit bridge, ClassLoader classLoader) {
         // "Can this media be downloaded" — force true.
         installGateHook(bridge, classLoader, "ReelDownloadGate_eligible",
                 36313978552585585L, // 0x81035f00020d71
@@ -258,11 +258,11 @@ public class ReelDownloadHook {
                 false);
     }
 
-    private static void installGateHook(DexKitBridge bridge, ClassLoader classLoader,
+    private static void installGateHook(LazyDexKit bridge, ClassLoader classLoader,
                                          String cacheKey, long configId,
                                          String param1Type, String param2Type,
                                          boolean forcedResult) {
-        XC_MethodHook hook = new XC_MethodHook() {
+        MethodHook hook = new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 ModuleLog.line("(IE|Reel|DEBUG) gate fired: " + cacheKey + " enabled=" + FeatureFlags.enableReelDownload);
@@ -273,9 +273,11 @@ public class ReelDownloadHook {
         if (DexKitCache.isCacheValid()) {
             Method cached = DexKitCache.loadMethod(cacheKey, classLoader);
             if (cached != null) {
-                XposedBridge.hookMethod(cached, hook);
+                HookBridge.hookMethod(cached, hook);
                 return;
             }
+            // Known to be absent in this Instagram version: don't rescan on every launch.
+            if ("missing".equals(DexKitCache.loadString(cacheKey))) return;
         }
 
         try {
@@ -287,12 +289,13 @@ public class ReelDownloadHook {
 
             if (methods.isEmpty()) {
                 ModuleLog.line("(IE|Reel) ⚠️ Gate method not found for config " + configId);
+                DexKitCache.saveString(cacheKey, "missing");
                 return;
             }
 
             Method target = methods.get(0).getMethodInstance(classLoader);
             target.setAccessible(true);
-            XposedBridge.hookMethod(target, hook);
+            HookBridge.hookMethod(target, hook);
             DexKitCache.saveMethod(cacheKey, target);
             FeatureStatusTracker.setHooked("ReelDownload");
             ModuleLog.line("(IE|Reel) ✅ Gate unlocked: " +
@@ -476,7 +479,7 @@ public class ReelDownloadHook {
         }
     }
 
-    private static void onOptionsBuilt(XC_MethodHook.MethodHookParam param) {
+    private static void onOptionsBuilt(MethodHook.MethodHookParam param) {
         try {
             Object controller  = param.thisObject;
             Object media       = param.args[0];

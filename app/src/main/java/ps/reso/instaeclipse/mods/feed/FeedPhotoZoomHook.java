@@ -15,8 +15,8 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.ImageView;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
 import ps.reso.instaeclipse.utils.log.ModuleLog;
@@ -47,7 +47,7 @@ public class FeedPhotoZoomHook {
 
             // Hooked at onAttachedToWindow, not the constructor: the view has no parent yet
             // at construction time, so the feed-row ancestor check below would always fail.
-            XposedHelpers.findAndHookMethod(viewClass, "onAttachedToWindow", new XC_MethodHook() {
+            HookHelpers.findAndHookMethod(viewClass, "onAttachedToWindow", new MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
                     // setOnLongClickListener() has a side effect beyond registering the
@@ -67,7 +67,7 @@ public class FeedPhotoZoomHook {
                         view.setOnLongClickListener(v -> {
                             if (!FeatureFlags.enablePhotoZoom) return false;
                             try {
-                                Object imgViewObj = XposedHelpers.callMethod(param.thisObject, "getIgImageView");
+                                Object imgViewObj = HookHelpers.callMethod(param.thisObject, "getIgImageView");
                                 if (!(imgViewObj instanceof ImageView)) return false;
                                 Bitmap snapshot = viewToBitmap((ImageView) imgViewObj);
                                 if (snapshot == null) return false;

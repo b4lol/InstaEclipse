@@ -3,8 +3,8 @@ package ps.reso.instaeclipse.mods.ads;
 import android.content.ClipData;
 import android.content.Intent;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
 
@@ -22,9 +22,9 @@ public class TrackingLinkDisable {
         FeatureStatusTracker.setHooked("DisableTrackingLinks");
 
         // 1. Modern clipboard (ClipData) 
-        Class<?> clipboardManagerClass = XposedHelpers.findClass("android.content.ClipboardManager", classLoader);
-        XposedHelpers.findAndHookMethod(clipboardManagerClass, "setPrimaryClip",
-                Class.forName("android.content.ClipData"), new XC_MethodHook() {
+        Class<?> clipboardManagerClass = HookHelpers.findClass("android.content.ClipboardManager", classLoader);
+        HookHelpers.findAndHookMethod(clipboardManagerClass, "setPrimaryClip",
+                Class.forName("android.content.ClipData"), new MethodHook() {
                     @Override
                     protected void beforeHookedMethod(MethodHookParam param) {
                         if (!FeatureFlags.disableTrackingLinks) return;
@@ -40,8 +40,8 @@ public class TrackingLinkDisable {
 
         // 2. Legacy clipboard (setText) -- IG's in-app "Copy link" button 
         try {
-            Class<?> legacyClipboard = XposedHelpers.findClass("android.text.ClipboardManager", classLoader);
-            XposedHelpers.findAndHookMethod(legacyClipboard, "setText", CharSequence.class, new XC_MethodHook() {
+            Class<?> legacyClipboard = HookHelpers.findClass("android.text.ClipboardManager", classLoader);
+            HookHelpers.findAndHookMethod(legacyClipboard, "setText", CharSequence.class, new MethodHook() {
                 @Override
                 protected void beforeHookedMethod(MethodHookParam param) {
                     if (!FeatureFlags.disableTrackingLinks) return;
@@ -54,7 +54,12 @@ public class TrackingLinkDisable {
         } catch (Throwable ignored) {}
 
         // 3. External share sheet -- Intent.putExtra(EXTRA_TEXT, ...) 
-        XC_MethodHook putExtraHook = new XC_MethodHook() {
+        MethodHook putExtraHook = new MethodHook() {
+            @Override
+            protected boolean isActive() {
+                return FeatureFlags.disableTrackingLinks;
+            }
+
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.disableTrackingLinks) return;
@@ -66,17 +71,22 @@ public class TrackingLinkDisable {
             }
         };
         try {
-            XposedHelpers.findAndHookMethod(Intent.class, "putExtra", String.class, String.class, putExtraHook);
+            HookHelpers.findAndHookMethod(Intent.class, "putExtra", String.class, String.class, putExtraHook);
         } catch (Throwable ignored) {}
         try {
-            XposedHelpers.findAndHookMethod(Intent.class, "putExtra", String.class, CharSequence.class, putExtraHook);
+            HookHelpers.findAndHookMethod(Intent.class, "putExtra", String.class, CharSequence.class, putExtraHook);
         } catch (Throwable ignored) {}
 
         // 4. System share sheet (android ChooserActivity) -- its built-in "Copy" button copies the
         // target Intent's EXTRA_TEXT in the SYSTEM process, so our in-app clipboard hooks never see
         // it. Sanitize the target Intent here, at the choke point where IG builds the chooser (runs
         // in IG's process), which fixes both the system "Copy" and every "Share to <app>" target.
-        XC_MethodHook chooserHook = new XC_MethodHook() {
+        MethodHook chooserHook = new MethodHook() {
+            @Override
+            protected boolean isActive() {
+                return FeatureFlags.disableTrackingLinks;
+            }
+
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.disableTrackingLinks) return;
@@ -85,11 +95,11 @@ public class TrackingLinkDisable {
             }
         };
         try {
-            XposedHelpers.findAndHookMethod(Intent.class, "createChooser",
+            HookHelpers.findAndHookMethod(Intent.class, "createChooser",
                     Intent.class, CharSequence.class, chooserHook);
         } catch (Throwable ignored) {}
         try {
-            XposedHelpers.findAndHookMethod(Intent.class, "createChooser",
+            HookHelpers.findAndHookMethod(Intent.class, "createChooser",
                     Intent.class, CharSequence.class, android.content.IntentSender.class, chooserHook);
         } catch (Throwable ignored) {}
     }

@@ -1,6 +1,7 @@
 package ps.reso.instaeclipse.mods.misc;
 
-import android.app.AndroidAppHelper;
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
+import ps.reso.instaeclipse.hook.HostApp;
 import android.app.Dialog;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -23,7 +24,6 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
@@ -36,8 +36,8 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
@@ -65,7 +65,7 @@ public class StoryMentionHook {
 
     // ── Entry point ──────────────────────────────────────────────────────────
 
-    public void install(DexKitBridge bridge, ClassLoader classLoader) {
+    public void install(LazyDexKit bridge, ClassLoader classLoader) {
         resolveMentionPipeline(bridge, classLoader);
         installButtonHook(bridge, classLoader);
         installClickHook(bridge, classLoader);
@@ -74,7 +74,7 @@ public class StoryMentionHook {
 
     // ── DexKit: resolve the two-step mention pipeline ────────────────────────
 
-    private static void resolveMentionPipeline(DexKitBridge bridge, ClassLoader classLoader) {
+    private static void resolveMentionPipeline(LazyDexKit bridge, ClassLoader classLoader) {
         if (DexKitCache.isCacheValid()) {
             Method g = DexKitCache.loadMethod("MentionsRawGetter", classLoader);
             Method c = DexKitCache.loadMethod("MentionsConverter", classLoader);
@@ -176,7 +176,7 @@ public class StoryMentionHook {
     // Same anchor as StoryDownloadHook — CharSequence[] builder with "[INTERNAL] Pause Playback".
     // Xposed stacks hooks, so both run independently on the same method.
 
-    private void installButtonHook(DexKitBridge bridge, ClassLoader classLoader) {
+    private void installButtonHook(LazyDexKit bridge, ClassLoader classLoader) {
         Method method = null;
 
         if (DexKitCache.isCacheValid()) {
@@ -212,13 +212,13 @@ public class StoryMentionHook {
         DexKitCache.saveMethod("MentionButton", method);
 
         try {
-            XposedBridge.hookMethod(method, new XC_MethodHook() {
+            HookBridge.hookMethod(method, new MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
                     if (!FeatureFlags.enableStoryMentions) return;
                     CharSequence[] original = (CharSequence[]) param.getResult();
                     if (original == null) return;
-                    String mentionLabel = I18n.t(AndroidAppHelper.currentApplication(), R.string.ig_btn_view_mentions);
+                    String mentionLabel = I18n.t(HostApp.get(), R.string.ig_btn_view_mentions);
                     for (CharSequence cs : original) {
                         if (mentionLabel.contentEquals(cs)) return;
                     }
@@ -239,7 +239,7 @@ public class StoryMentionHook {
     // Same anchor as StoryDownloadHook click handler. We intercept only our label;
     // all other taps pass through to Instagram and to the StoryDownloadHook.
 
-    private void installClickHook(DexKitBridge bridge, ClassLoader classLoader) {
+    private void installClickHook(LazyDexKit bridge, ClassLoader classLoader) {
         Method method = null;
 
         if (DexKitCache.isCacheValid()) {
@@ -267,7 +267,7 @@ public class StoryMentionHook {
         }
 
         try {
-            XposedBridge.hookMethod(method, new XC_MethodHook() {
+            HookBridge.hookMethod(method, new MethodHook() {
                 @Override
                 protected void beforeHookedMethod(MethodHookParam param) {
                     try {
@@ -277,7 +277,7 @@ public class StoryMentionHook {
                         for (Object a : param.args) {
                             if (a instanceof CharSequence cs && tapped == null) tapped = cs;
                         }
-                        String mentionLabel = I18n.t(AndroidAppHelper.currentApplication(), R.string.ig_btn_view_mentions);
+                        String mentionLabel = I18n.t(HostApp.get(), R.string.ig_btn_view_mentions);
                         if (tapped == null || !mentionLabel.contentEquals(tapped)) return;
 
                         param.setResult(null); // consume event

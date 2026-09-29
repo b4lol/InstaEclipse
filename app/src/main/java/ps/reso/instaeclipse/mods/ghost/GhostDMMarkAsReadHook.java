@@ -2,7 +2,6 @@ package ps.reso.instaeclipse.mods.ghost;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.res.XModuleResources;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.view.Gravity;
@@ -12,9 +11,12 @@ import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.Toast;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.ViewAttachDispatcher;
+import ps.reso.instaeclipse.utils.ui.ResIds;
+import ps.reso.instaeclipse.hook.ModuleResources;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.i18n.I18n;
@@ -23,35 +25,24 @@ import ps.reso.instaeclipse.utils.log.ModuleLog;
 public class GhostDMMarkAsReadHook {
 
     private static final String GHOST_BTN_TAG = "ie_ghost_seen_btn";
-    private final String moduleSourceDir;
-
-    public GhostDMMarkAsReadHook(String moduleSourceDir) {
-        this.moduleSourceDir = moduleSourceDir;
-    }
-
-    // Cached once on first use — resource IDs are constant for a given app install.
-    private static volatile int sCachedContainerId = 0;
 
     public void install(ClassLoader classLoader) {
         try {
-            XposedHelpers.findAndHookMethod(View.class, "onAttachedToWindow", new XC_MethodHook() {
+            ViewAttachDispatcher.register(new ViewAttachDispatcher.Listener() {
+                // Shared View.onAttachedToWindow hook: runs for every attached view, so only
+                // compare ids here; nothing runs at all while the feature is off.
                 @Override
-                protected void afterHookedMethod(MethodHookParam param) {
-                    // Bail immediately if the feature is off — this hook fires for every
-                    // view attachment in the entire app, so the fast path must be trivial.
-                    if (!FeatureFlags.isGhostSeen) return;
+                public boolean isActive() {
+                    return FeatureFlags.isGhostSeen;
+                }
 
-                    View view = (View) param.thisObject;
+                @Override
+                public void onAttached(View view) {
 
-                    if (sCachedContainerId == 0) {
-                        @SuppressLint("DiscouragedApi")
-                        int id = view.getContext().getResources().getIdentifier(
-                                "row_thread_composer_buttons_container", "id",
-                                view.getContext().getPackageName());
-                        sCachedContainerId = id;
-                    }
-
-                    if (sCachedContainerId == 0 || view.getId() != sCachedContainerId) return;
+                    // Resolved once (a missing id is cached as 0 too, so a renamed resource
+                    // doesn't turn into a getIdentifier() call per attached view).
+                    int containerId = ResIds.id(view.getContext(), "row_thread_composer_buttons_container");
+                    if (containerId == 0 || view.getId() != containerId) return;
                     if (!(view.getParent() instanceof ViewGroup parent)) return;
                     injectIndependentButton(parent, view);
                 }
@@ -69,7 +60,7 @@ public class GhostDMMarkAsReadHook {
         ghostBtn.setTag(GHOST_BTN_TAG);
 
         try {
-            @SuppressLint("UseCompatLoadingForDrawables") Drawable icon = XModuleResources.createInstance(moduleSourceDir, null)
+            @SuppressLint("UseCompatLoadingForDrawables") Drawable icon = ModuleResources.get()
                     .getDrawable(R.drawable.ic_eye, null);
             ghostBtn.setImageDrawable(icon);
         } catch (Exception e) {

@@ -1,10 +1,10 @@
 package ps.reso.instaeclipse.mods.ghost;
 
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import android.annotation.SuppressLint;
 import android.view.View;
 import android.view.ViewGroup;
 
-import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
@@ -18,8 +18,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
@@ -103,7 +103,7 @@ public class KeepUnsentMessagesHook {
      *  in-thread unsent button to show only THIS chat's log. */
     public static volatile String currentThreadId = null;
 
-    public void install(DexKitBridge bridge, ClassLoader classLoader) {
+    public void install(LazyDexKit bridge, ClassLoader classLoader) {
         hookRemovePrimitive(bridge, classLoader);
         hookReconcile(bridge, classLoader);
         hookCurrentThread(bridge, classLoader);
@@ -111,19 +111,19 @@ public class KeepUnsentMessagesHook {
 
     /** Track the open thread: the (DirectThreadKey, boolean)->void "igThreadIgid" method fires
      *  when a thread becomes visible; stash its DirectThreadKey id. */
-    private void hookCurrentThread(DexKitBridge bridge, ClassLoader classLoader) {
+    private void hookCurrentThread(LazyDexKit bridge, ClassLoader classLoader) {
         try {
-            List<MethodData> methods = bridge.findMethod(FindMethod.create()
-                    .matcher(MethodMatcher.create()
+            List<Method> methods = bridge.findMethodsCached("KeepUnsent_currentThread", classLoader,
+                    FindMethod.create().matcher(MethodMatcher.create()
                             .usingStrings("igThreadIgid")
                             .paramTypes("com.instagram.model.direct.DirectThreadKey", "boolean")));
-            XC_MethodHook hook = new XC_MethodHook() {
+            MethodHook hook = new MethodHook() {
                 @Override
                 protected void beforeHookedMethod(MethodHookParam param) {
                     if (param.args.length > 0) {
                         String id = threadIdOf(param.args[0]);
                         Object flag = param.args.length > 1 ? param.args[1] : null;
-                        ModuleLog.line("(IE|KeepUnsent|PROBE) igThreadIgid id=" + id + " flag=" + flag);
+                        ModuleLog.probe("(IE|KeepUnsent|PROBE) igThreadIgid id=" + id + " flag=" + flag);
                         // Only treat flag==true as "thread entered/visible" to avoid background sync
                         // overwriting the current thread with other threads' ids.
                         if (id != null && Boolean.TRUE.equals(flag)) {
@@ -134,8 +134,8 @@ public class KeepUnsentMessagesHook {
                 }
             };
             int n = 0;
-            for (MethodData md : methods) {
-                try { XposedBridge.hookMethod(md.getMethodInstance(classLoader), hook); n++; }
+            for (Method m : methods) {
+                try { HookBridge.hookMethod(m, hook); n++; }
                 catch (Throwable ignored) {}
             }
             ModuleLog.line("(IE|KeepUnsent) current-thread tracker hooked " + n + " method(s)");
@@ -211,8 +211,8 @@ public class KeepUnsentMessagesHook {
     }
 
     // ── 1. LIVE removal: no-op + capture the id ──────────────────────────────────
-    private void hookRemovePrimitive(DexKitBridge bridge, ClassLoader classLoader) {
-        XC_MethodHook hook = new XC_MethodHook() {
+    private void hookRemovePrimitive(LazyDexKit bridge, ClassLoader classLoader) {
+        MethodHook hook = new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.keepUnsentMessages) return;
@@ -234,7 +234,7 @@ public class KeepUnsentMessagesHook {
         if (DexKitCache.isCacheValid()) {
             List<Method> cached = DexKitCache.loadMethods(CACHE_KEY, classLoader);
             if (cached != null && !cached.isEmpty()) {
-                for (Method m : cached) XposedBridge.hookMethod(m, hook);
+                for (Method m : cached) HookBridge.hookMethod(m, hook);
                 FeatureStatusTracker.setHooked("KeepUnsentMessages");
                 ModuleLog.line("(IE|KeepUnsent) ✅ remove hooked (cached) " + cached.size());
                 return;
@@ -260,7 +260,7 @@ public class KeepUnsentMessagesHook {
                     if (!r3 && !r4) continue;
                     try {
                         m.setAccessible(true);
-                        XposedBridge.hookMethod(m, hook);
+                        HookBridge.hookMethod(m, hook);
                         hooked.add(m);
                         ModuleLog.line("(IE|KeepUnsent) ✅ remove hook → " + store.getName() + "." + m.getName() + " (" + p.length + "-arg)");
                     } catch (Throwable t) { ModuleLog.line("(IE|KeepUnsent) ⚠️ " + t.getMessage()); }
@@ -276,8 +276,8 @@ public class KeepUnsentMessagesHook {
     }
 
     // ── 2. REFRESH/SYNC reconcile: keep protected messages in the live list ──────
-    private void hookReconcile(DexKitBridge bridge, ClassLoader classLoader) {
-        XC_MethodHook hook = new XC_MethodHook() {
+    private void hookReconcile(LazyDexKit bridge, ClassLoader classLoader) {
+        MethodHook hook = new MethodHook() {
             // BEFORE: while the message is still present in the live list (or arriving), cache the
             // actual message object so we can re-inject it on later passes that no longer carry it.
             @Override
@@ -343,11 +343,10 @@ public class KeepUnsentMessagesHook {
         };
 
         try {
-            List<MethodData> methods = bridge.findMethod(FindMethod.create()
-                    .matcher(MethodMatcher.create().usingStrings(RECONCILE_ANCHOR)));
             LinkedHashSet<Class<?>> classes = new LinkedHashSet<>();
-            for (MethodData md : methods) {
-                try { classes.add(md.getMethodInstance(classLoader).getDeclaringClass()); } catch (Throwable ignored) {}
+            for (Method anchorMethod : bridge.findMethodsUsingStringCached("KeepUnsent_reconcileAnchor",
+                    classLoader, RECONCILE_ANCHOR)) {
+                classes.add(anchorMethod.getDeclaringClass());
             }
             for (Class<?> c : classes) {
                 for (Method m : c.getDeclaredMethods()) {
@@ -361,7 +360,7 @@ public class KeepUnsentMessagesHook {
                     for (int i = 1; i < 6; i++) if (!List.class.isAssignableFrom(p[i])) { rest = false; break; }
                     if (!rest) continue;
                     m.setAccessible(true);
-                    XposedBridge.hookMethod(m, hook);
+                    HookBridge.hookMethod(m, hook);
                     ModuleLog.line("(IE|KeepUnsent) ✅ reconcile hook → " + c.getName() + "." + m.getName());
                     return;
                 }

@@ -1,6 +1,6 @@
 package ps.reso.instaeclipse.mods.feed;
 
-import org.luckypray.dexkit.DexKitBridge;
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
@@ -9,8 +9,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
@@ -20,8 +20,8 @@ public class HideSuggestedFeedItemsHook {
 
     private static final String CACHE_KEY_PARSER = "FeedItemParserClass";
 
-    public void install(DexKitBridge bridge, ClassLoader classLoader) {
-        XC_MethodHook filterHook = new XC_MethodHook() {
+    public void install(LazyDexKit bridge, ClassLoader classLoader) {
+        MethodHook filterHook = new MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.hideSuggestionsInFeed && !FeatureFlags.hideThreadsSuggestions) return;
@@ -118,12 +118,12 @@ public class HideSuggestedFeedItemsHook {
         }
     }
 
-    private void hookBridgeMethod(String className, ClassLoader classLoader, XC_MethodHook hook)
+    private void hookBridgeMethod(String className, ClassLoader classLoader, MethodHook hook)
             throws ClassNotFoundException {
         Class<?> clazz = Class.forName(className, false, classLoader);
         for (Method m : clazz.getDeclaredMethods()) {
             if (m.isBridge()) {
-                XposedBridge.hookMethod(m, hook);
+                HookBridge.hookMethod(m, hook);
             }
         }
     }

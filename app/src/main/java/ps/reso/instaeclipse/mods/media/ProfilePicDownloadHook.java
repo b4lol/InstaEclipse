@@ -16,9 +16,11 @@ import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.ViewAttachDispatcher;
+import ps.reso.instaeclipse.utils.ui.ResIds;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
@@ -40,9 +42,6 @@ public class ProfilePicDownloadHook {
     private static final Handler mainHandler = new Handler(Looper.getMainLooper());
     private static final String  HOOKED_TAG  = "ie_profile_dl";
 
-    /** Cached resource ID for "expanded_profile_pic"; 0 = not yet resolved. */
-    private static volatile int expandedPicViewId = 0;
-
     // ── Install ───────────────────────────────────────────────────────────────
 
     public static void install() {
@@ -54,24 +53,24 @@ public class ProfilePicDownloadHook {
 
         // Hook View.onAttachedToWindow — fires once per view attachment, works for any
         // window type (Activity, Dialog, BottomSheet) without relying on layout listeners.
-        XposedHelpers.findAndHookMethod(View.class, "onAttachedToWindow", new XC_MethodHook() {
+        ViewAttachDispatcher.register(new ViewAttachDispatcher.Listener() {
+            // Shared View.onAttachedToWindow hook: runs for every attached view, so only
+            // compare ids here; nothing runs at all while the feature is off.
             @Override
-            protected void afterHookedMethod(MethodHookParam param) {
-                if (!FeatureFlags.enableProfileDownload) return;
-                View v = (View) param.thisObject;
+            public boolean isActive() {
+                return FeatureFlags.enableProfileDownload;
+            }
+
+            @Override
+            public void onAttached(View v) {
                 int vid = v.getId();
                 if (vid == View.NO_ID) return;
 
-                // Fast path: cached int comparison (only resolves resource name once)
-                if (expandedPicViewId != 0) {
-                    if (vid != expandedPicViewId) return;
-                } else {
-                    try {
-                        String name = v.getResources().getResourceEntryName(vid);
-                        if (!"expanded_profile_pic".equals(name)) return;
-                        expandedPicViewId = vid;
-                    } catch (Throwable ignored) { return; }
-                }
+                // Int comparison against an id resolved once per process. (Resolving the
+                // name of every attached view instead cost a JNI call and often a thrown
+                // NotFoundException per view.)
+                int picId = ResIds.id(v.getContext(), "expanded_profile_pic");
+                if (picId == 0 || vid != picId) return;
 
                 injectLongPress(v);
             }
@@ -219,6 +218,7 @@ public class ProfilePicDownloadHook {
 
     private static void downloadToStream(String url, OutputStream out) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        MediaHttp.applyTimeouts(conn);
         conn.setRequestProperty("User-Agent",
                 "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36");
         conn.connect();

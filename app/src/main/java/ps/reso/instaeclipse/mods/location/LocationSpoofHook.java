@@ -10,8 +10,8 @@ import androidx.core.location.LocationCompat;
 
 import java.lang.reflect.Method;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
 import ps.reso.instaeclipse.utils.log.ModuleLog;
@@ -36,7 +36,7 @@ public class LocationSpoofHook {
                 for (Method m : LocationManager.class.getDeclaredMethods()) {
                     String n = m.getName();
                     if (n.equals("getLastKnownLocation") || n.equals("getLastLocation")) {
-                        XposedBridge.hookMethod(m, new XC_MethodHook() {
+                        HookBridge.hookMethod(m, new MethodHook() {
                             @Override
                             protected void afterHookedMethod(MethodHookParam param) {
                                 if (!FeatureFlags.spoofLocation) return;
@@ -47,7 +47,7 @@ public class LocationSpoofHook {
                         });
                     }
                     if (n.equals("requestLocationUpdates") || n.equals("requestSingleUpdate")) {
-                        XposedBridge.hookMethod(m, new XC_MethodHook() {
+                        HookBridge.hookMethod(m, new MethodHook() {
                             @Override
                             protected void afterHookedMethod(MethodHookParam param) {
                                 if (!FeatureFlags.spoofLocation) return;
@@ -65,7 +65,7 @@ public class LocationSpoofHook {
                     Class<?> fused = classLoader.loadClass("com.google.android.gms.location.FusedLocationProviderClient");
                     for (Method m : fused.getDeclaredMethods()) {
                         if (m.getName().equals("getLastLocation") && m.getParameterTypes().length == 0) {
-                            XposedBridge.hookMethod(m, new XC_MethodHook() {
+                            HookBridge.hookMethod(m, new MethodHook() {
                                 @Override
                                 protected void afterHookedMethod(MethodHookParam param) {
                                     if (!FeatureFlags.spoofLocation) return;

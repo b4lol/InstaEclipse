@@ -1,17 +1,17 @@
 package ps.reso.instaeclipse.mods.ui;
 
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
 import ps.reso.instaeclipse.utils.log.ModuleLog;
@@ -65,7 +65,7 @@ public class DisableRepostHook {
     private static final String POST_REPOST_COROUTINE =
             "com.instagram.reposts.data.RepostsRepository$postRepost$2";
 
-    public void install(DexKitBridge bridge, ClassLoader classLoader) {
+    public void install(LazyDexKit bridge, ClassLoader classLoader) {
         int total = installActionHandler(bridge, classLoader);
         total += installFeedCommit(classLoader);
 
@@ -74,8 +74,8 @@ public class DisableRepostHook {
     }
 
     // Reels + profile path — swallow the shared handler's void entry points entirely.
-    private int installActionHandler(DexKitBridge bridge, ClassLoader classLoader) {
-        XC_MethodHook skip = new XC_MethodHook() {
+    private int installActionHandler(LazyDexKit bridge, ClassLoader classLoader) {
+        MethodHook skip = new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (FeatureFlags.disableRepost) {
@@ -86,28 +86,25 @@ public class DisableRepostHook {
         };
 
         int total = 0;
-        Set<String> hooked = new HashSet<>();
-        for (String anchor : NEUTRALIZE_ANCHORS) {
-            try {
-                for (MethodData md : bridge.findMethod(FindMethod.create()
-                        .matcher(MethodMatcher.create().usingStrings(anchor)))) {
-                    String key = md.getDescriptor();
-                    if (!hooked.add(key)) continue; // avoid double-hooking a shared method
-                    try {
-                        XposedBridge.hookMethod(md.getMethodInstance(classLoader), skip);
-                        total++;
-                    } catch (Throwable ignored) {}
-                }
-            } catch (Throwable t) {
-                ModuleLog.line("(IE|Repost) ⚠️ anchor " + anchor + ": " + t.getMessage());
+        try {
+            // One DexKit pass for all anchors, cached per Instagram version; methods shared
+            // by several anchors are returned once.
+            for (java.lang.reflect.Method m : bridge.findMethodsUsingAnyStringCached(
+                    "DisableRepost_neutralize", classLoader, NEUTRALIZE_ANCHORS)) {
+                try {
+                    HookBridge.hookMethod(m, skip);
+                    total++;
+                } catch (Throwable ignored) {}
             }
+        } catch (Throwable t) {
+            ModuleLog.line("(IE|Repost) ⚠️ anchors: " + t.getMessage());
         }
         return total;
     }
 
     // Home-feed path — skip the VOID RepostsRepository.postRepost launcher (sentinel-safe).
     private int installFeedCommit(ClassLoader classLoader) {
-        XC_MethodHook skipPostRepost = new XC_MethodHook() {
+        MethodHook skipPostRepost = new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (FeatureFlags.disableRepost) {
@@ -144,7 +141,7 @@ public class DisableRepostHook {
                 if (!isPostRepostLauncher(m)) continue;
                 try {
                     m.setAccessible(true);
-                    XposedBridge.hookMethod(m, skipPostRepost);
+                    HookBridge.hookMethod(m, skipPostRepost);
                     total++;
                 } catch (Throwable ignored) {}
             }

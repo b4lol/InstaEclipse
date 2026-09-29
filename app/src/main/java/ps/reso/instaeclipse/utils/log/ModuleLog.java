@@ -3,23 +3,20 @@ package ps.reso.instaeclipse.utils.log;
 import android.util.Log;
 
 /**
- * Drop-in replacement for direct XposedBridge.log(...) calls: prefixes the caller's
- * class/method/line, still logs to logcat, and additionally appends to Logging's in-memory
- * ring buffer so the message shows up in InstaEclipse's in-app log viewer, not just adb logcat.
+ * Logging used across the hooks: prefixes the caller's class/method/line, logs to logcat, and
+ * appends to Logging's in-memory ring buffer so the message shows up in InstaEclipse's in-app
+ * log viewer, not just adb logcat.
  *
- * Logs to logcat via android.util.Log rather than XposedBridge.log: LSPosed refuses to let a
- * module hook XposedBridge's own methods ("Do not allow hooking inner methods"), which is
- * what made the original auto-capture-via-hook approach a dead end, and Class.forName("de.robv
- * .android.xposed.XposedBridge") also fails under LSPosed's legacy-API compat even though a
- * direct compiled reference to XposedBridge works fine. android.util.Log has neither problem
- * and works identically in the companion app's own (un-hooked) process.
+ * Uses android.util.Log rather than the framework log ({@code HookBridge.log}) so it works
+ * identically in the companion app's own (un-hooked) process.
  */
 public final class ModuleLog {
 
     private static final String TAG = "InstaEclipse";
 
-    /** Verbose/debug logging. Off by default so per-event PROBE/DEBUG chatter and the stack-walk
-     *  they trigger don't ship in release. Normal status lines (line()) always log. */
+    /** Verbose/debug logging. Off by default so per-event PROBE/DEBUG chatter doesn't ship in
+     *  release. Normal status lines (line()) always log. Also enables the
+     *  {@code [Class.method:line]} caller prefix, which needs a stack walk per line. */
     public static volatile boolean verbose = false;
 
     private ModuleLog() {}
@@ -31,11 +28,15 @@ public final class ModuleLog {
     }
 
     private static String getCallerInfo() {
+        // Thread.getStackTrace() is expensive on ART and line() runs inside hooks; almost every
+        // message already carries its own "(IE|Tag)" prefix, so only resolve the caller when
+        // debugging.
+        if (!verbose) return "";
         StackTraceElement[] stack = Thread.currentThread().getStackTrace();
         for (int i = 2; i < stack.length; i++) {
             String cn = stack[i].getClassName();
             if (!cn.equals(ModuleLog.class.getName()) && !cn.equals(Logging.class.getName())
-                    && !cn.equals(Thread.class.getName()) && !cn.startsWith("de.robv.android.xposed.")) {
+                    && !cn.equals(Thread.class.getName()) && !cn.startsWith("ps.reso.instaeclipse.hook.")) {
                 String simpleName = cn.substring(cn.lastIndexOf('.') + 1);
                 return "[" + simpleName + "." + stack[i].getMethodName() + ":" + stack[i].getLineNumber() + "] ";
             }

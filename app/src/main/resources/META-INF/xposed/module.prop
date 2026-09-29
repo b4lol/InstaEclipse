@@ -1,0 +1,6 @@
+minApiVersion=101
+targetApiVersion=101
+# Users may also enable the module for supported Instagram clones (CommonUtils.SUPPORTED_PACKAGES).
+staticScope=false
+# A failing hook is logged and skipped instead of crashing Instagram.
+exceptionMode=protective

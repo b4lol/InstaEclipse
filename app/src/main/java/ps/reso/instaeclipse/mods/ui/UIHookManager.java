@@ -20,9 +20,9 @@ import org.luckypray.dexkit.result.MethodData;
 import java.util.List;
 import java.util.Map;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.Xposed.Module;
 import ps.reso.instaeclipse.mods.devops.config.ConfigManager;
@@ -153,8 +153,9 @@ public class UIHookManager {
     public void mainActivity(ClassLoader classLoader) {
         // Hook onCreate of Instagram Main
         try {
-            // Precise search for the standard onCreate(Bundle) signature
-            var methods = Module.dexKitBridge.findMethod(create()
+            // Precise search for the standard onCreate(Bundle) signature (cached per IG version)
+            List<java.lang.reflect.Method> methods = Module.dexKitBridge.findMethodsCached(
+                    "MainActivity_onCreate", classLoader, create()
                     .matcher(org.luckypray.dexkit.query.matchers.MethodMatcher.create()
                             .declaredClass(INSTAGRAM_MAIN_ACTIVITY)
                             .name("onCreate")
@@ -166,7 +167,8 @@ public class UIHookManager {
             // Fallback: If "onCreate" is renamed/obfuscated but still takes a Bundle
             if (methods.isEmpty()) {
                 ModuleLog.line("(InstaEclipse): ⚠️ Specific onCreate not found, searching by signature...");
-                methods = Module.dexKitBridge.findMethod(create()
+                methods = Module.dexKitBridge.findMethodsCached(
+                        "MainActivity_onCreateBySignature", classLoader, create()
                         .matcher(org.luckypray.dexkit.query.matchers.MethodMatcher.create()
                                 .declaredClass(INSTAGRAM_MAIN_ACTIVITY)
                                 .paramTypes("android.os.Bundle")
@@ -180,7 +182,7 @@ public class UIHookManager {
                 if (methodName == null || methodName.isEmpty()) {
                     ModuleLog.line("(InstaEclipse): ❌ Invalid onCreate method name discovered");
                 } else {
-                    XposedHelpers.findAndHookMethod(INSTAGRAM_MAIN_ACTIVITY, classLoader, methodName, Bundle.class, new XC_MethodHook() {
+                    HookHelpers.findAndHookMethod(INSTAGRAM_MAIN_ACTIVITY, classLoader, methodName, Bundle.class, new MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                         final Activity activity = (Activity) param.thisObject;
@@ -231,31 +233,9 @@ public class UIHookManager {
 
         // Hook onResume - Instagram Main
         try {
-            List<MethodData> candidates = Module.dexKitBridge.findMethod(org.luckypray.dexkit.query.FindMethod.create()
-                    .matcher(org.luckypray.dexkit.query.matchers.MethodMatcher.create()
-                            .declaredClass(INSTAGRAM_MAIN_ACTIVITY)
-                            .modifiers(java.lang.reflect.Modifier.PUBLIC)
-                            .paramCount(0)
-                            .returnType("void")
-                    )
-            );
-
-            for (MethodData methodData : candidates) {
-                String methodName = methodData.getName();
-
-                if (methodName == null || methodName.isEmpty()) continue;
-
-                // Skip constructors and static initializers
-                if (methodName.contains("<init>") || methodName.contains("<clinit>")) {
-                    continue;
-                }
-
-                // Filter by opcode size to find the substantial lifecycle method
-                if (methodData.getOpCodes().size() < 20) {
-                    continue;
-                }
-
-                XposedHelpers.findAndHookMethod(INSTAGRAM_MAIN_ACTIVITY, classLoader, methodName, new XC_MethodHook() {
+            String methodName = resolveMainOnResumeName(classLoader);
+            if (methodName != null) {
+                HookHelpers.findAndHookMethod(INSTAGRAM_MAIN_ACTIVITY, classLoader, methodName, new MethodHook() {
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) {
                         final Activity activity = (Activity) param.thisObject;
@@ -269,7 +249,6 @@ public class UIHookManager {
                         });
                     }
                 });
-                break;
             }
         } catch (Throwable t) {
             ModuleLog.line("(InstaEclipse): ❌ onResume discovery failed: " + t.getMessage());
@@ -284,7 +263,7 @@ public class UIHookManager {
         // performLongClick() fires BEFORE any listener/interceptor chain and lets us
         // fully own the event by returning true via setResult.
         // This only fires when the user actually long-presses something — not a hot path.
-        XposedHelpers.findAndHookMethod(View.class, "performLongClick", new XC_MethodHook() {
+        HookHelpers.findAndHookMethod(View.class, "performLongClick", new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (sInboxButtonId == 0 && sDirectTabId == 0) return;
@@ -300,7 +279,7 @@ public class UIHookManager {
         });
 
         // Hook onResume - Model
-        XposedHelpers.findAndHookMethod("com.instagram.modal.ModalActivity", classLoader, "onResume", new XC_MethodHook() {
+        HookHelpers.findAndHookMethod("com.instagram.modal.ModalActivity", classLoader, "onResume", new MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
                 Activity activity = (Activity) param.thisObject;
@@ -338,6 +317,41 @@ public class UIHookManager {
         }
     }
 
+    /**
+     * Name of the main activity's substantial public no-arg void lifecycle method (its onResume).
+     * The opcode-size filter needs DexKit, so the result is cached per Instagram version.
+     */
+    private static String resolveMainOnResumeName(ClassLoader classLoader) {
+        final String cacheKey = "MainActivity_onResume";
+        if (ps.reso.instaeclipse.utils.core.DexKitCache.isCacheValid()) {
+            java.lang.reflect.Method cached =
+                    ps.reso.instaeclipse.utils.core.DexKitCache.loadMethod(cacheKey, classLoader);
+            if (cached != null) return cached.getName();
+        }
+        List<MethodData> candidates = Module.dexKitBridge.findMethod(org.luckypray.dexkit.query.FindMethod.create()
+                .matcher(org.luckypray.dexkit.query.matchers.MethodMatcher.create()
+                        .declaredClass(INSTAGRAM_MAIN_ACTIVITY)
+                        .modifiers(java.lang.reflect.Modifier.PUBLIC)
+                        .paramCount(0)
+                        .returnType("void")
+                )
+        );
+        for (MethodData methodData : candidates) {
+            String methodName = methodData.getName();
+            if (methodName == null || methodName.isEmpty()) continue;
+            // Skip constructors and static initializers
+            if (methodName.contains("<init>") || methodName.contains("<clinit>")) continue;
+            // Filter by opcode size to find the substantial lifecycle method
+            if (methodData.getOpCodes().size() < 20) continue;
+            try {
+                ps.reso.instaeclipse.utils.core.DexKitCache.saveMethod(cacheKey,
+                        methodData.getMethodInstance(classLoader));
+            } catch (Throwable ignored) {}
+            return methodName;
+        }
+        return null;
+    }
+
     /** Registers a broadcast receiver in the Instagram process to handle config imports. */
     public static void registerConfigImportReceiver(android.content.Context context) {
         BroadcastReceiver receiver = new BroadcastReceiver() {
@@ -349,16 +363,8 @@ public class UIHookManager {
                 }
             }
         };
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(receiver,
-                    new IntentFilter("ps.reso.instaeclipse.ACTION_IMPORT_CONFIG"),
-                    android.content.Context.RECEIVER_EXPORTED);
-        } else {
-            androidx.core.content.ContextCompat.registerReceiver(context,
-                    receiver,
-                    new IntentFilter("ps.reso.instaeclipse.ACTION_IMPORT_CONFIG"),
-                    androidx.core.content.ContextCompat.RECEIVER_EXPORTED);
-        }
+        ps.reso.instaeclipse.utils.core.IpcSecurity.registerCompanionOnlyReceiver(context, receiver,
+                new IntentFilter("ps.reso.instaeclipse.ACTION_IMPORT_CONFIG"));
     }
 
     /** Registers a receiver in the Instagram process to restore settings from a backup JSON. */
@@ -385,17 +391,9 @@ public class UIHookManager {
             }
         };
         try {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                context.registerReceiver(receiver,
-                        new IntentFilter("ps.reso.instaeclipse.ACTION_RESTORE_SETTINGS"),
-                        android.content.Context.RECEIVER_EXPORTED);
-            } else {
-                androidx.core.content.ContextCompat.registerReceiver(context,
-                        receiver,
-                        new IntentFilter("ps.reso.instaeclipse.ACTION_RESTORE_SETTINGS"),
-                        androidx.core.content.ContextCompat.RECEIVER_EXPORTED);
-            }
-            } catch (Throwable e) {
+            ps.reso.instaeclipse.utils.core.IpcSecurity.registerCompanionOnlyReceiver(context, receiver,
+                    new IntentFilter("ps.reso.instaeclipse.ACTION_RESTORE_SETTINGS"));
+        } catch (Throwable e) {
             ModuleLog.line("(InstaEclipse | RestoreReceiver): ❌ " + e.getMessage());
         }
     }

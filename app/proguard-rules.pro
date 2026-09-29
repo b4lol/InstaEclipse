@@ -6,8 +6,9 @@
 # Keep ALL classes & members (methods, fields)
 -keep class ps.reso.instaeclipse.** { *; }
 
-# Keep everything related to Xposed API
--keep class de.robv.android.xposed.** { *; }
+# Xposed API (libxposed 101) is provided by the framework at runtime; its AAR ships the
+# consumer rule that keeps the XposedModule entry class. Keep our hook layer intact.
+-keep class ps.reso.instaeclipse.hook.** { *; }
 
 # Keep reflection / DexKit-accessed symbols
 -keep class * {
@@ -25,6 +26,7 @@
 -dontwarn androidx.**
 -dontwarn com.android.**
 -dontwarn org.lsposed.**
+-dontwarn io.github.libxposed.api.**
 # Suppress missing javax.lang.model warnings
 -dontwarn javax.lang.model.**
 -dontwarn com.google.errorprone.annotations.**

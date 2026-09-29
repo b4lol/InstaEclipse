@@ -20,9 +20,9 @@ import android.widget.Toast;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
 import ps.reso.instaeclipse.utils.i18n.I18n;
@@ -65,7 +65,7 @@ public class InstantUploadHook {
     // ── 4. The bitmap swap (verified: A02 arg1 = captured Bitmap) ──────────────
     private void hookSwap(ClassLoader cl) {
         try {
-            Class<?> vm = XposedHelpers.findClass(VM_CLASS, cl);
+            Class<?> vm = HookHelpers.findClass(VM_CLASS, cl);
             Method a02 = null;
             for (Method m : vm.getDeclaredMethods()) {
                 if (!Modifier.isStatic(m.getModifiers())) continue;
@@ -74,7 +74,7 @@ public class InstantUploadHook {
                 if (bmp >= 2) { a02 = m; break; }
             }
             if (a02 == null) { ModuleLog.line("(IE|InstantUpload) ⚠️ A02 not found"); return; }
-            XposedBridge.hookMethod(a02, new XC_MethodHook() {
+            HookBridge.hookMethod(a02, new MethodHook() {
                 @Override protected void beforeHookedMethod(MethodHookParam p) {
                     try {
                         if (!(p.args[1] instanceof Bitmap)) return; // suspend re-entry passes nulls
@@ -107,11 +107,11 @@ public class InstantUploadHook {
     private void hookCameraOpen(ClassLoader cl) {
         registerLifecycle(cl);
         try {
-            Class<?> vm = XposedHelpers.findClass(VM_CLASS, cl);
+            Class<?> vm = HookHelpers.findClass(VM_CLASS, cl);
             // Hook the VM's no-arg void instance methods structurally (not a hardcoded letter like
             // "A15") — any one firing means the quicksnap camera VM is live, i.e. the camera is
             // on screen. Injection is idempotent + gated to the modal, so hooking several is safe.
-            XC_MethodHook onActive = new XC_MethodHook() {
+            MethodHook onActive = new MethodHook() {
                 @Override protected void afterHookedMethod(MethodHookParam p) {
                     if (!FeatureFlags.uploadInstants) return;
                     Activity act = currentActivity();
@@ -124,7 +124,7 @@ public class InstantUploadHook {
                 if (m.getParameterCount() != 0) continue;
                 if (m.getReturnType() != void.class) continue;
                 if (m.isSynthetic() || m.isBridge()) continue;
-                try { XposedBridge.hookMethod(m, onActive); n++; } catch (Throwable ignored) {}
+                try { HookBridge.hookMethod(m, onActive); n++; } catch (Throwable ignored) {}
             }
             ModuleLog.line("(IE|InstantUpload) ✅ camera-open hooked (" + n + " VM methods)");
         } catch (Throwable t) {
@@ -140,7 +140,7 @@ public class InstantUploadHook {
         if (lifecycleRegistered) return;
         try {
             android.app.Application app = (android.app.Application)
-                    android.app.AndroidAppHelper.currentApplication();
+                    ps.reso.instaeclipse.hook.HostApp.get();
             if (app == null) return;
             app.registerActivityLifecycleCallbacks(new android.app.Application.ActivityLifecycleCallbacks() {
                 @Override public void onActivityPaused(Activity a) { if (a == chipHost) removeChip(); }
@@ -263,8 +263,8 @@ public class InstantUploadHook {
     // ── 3. Receive the pick (hook base Activity.onActivityResult) ──────────────
     private void hookPickerResult() {
         try {
-            XposedHelpers.findAndHookMethod(Activity.class, "onActivityResult",
-                    int.class, int.class, Intent.class, new XC_MethodHook() {
+            HookHelpers.findAndHookMethod(Activity.class, "onActivityResult",
+                    int.class, int.class, Intent.class, new MethodHook() {
                         @Override protected void afterHookedMethod(MethodHookParam p) {
                             try {
                                 int req = (int) p.args[0];

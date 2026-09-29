@@ -1,5 +1,7 @@
 package ps.reso.instaeclipse.mods.ui;
 
+import java.lang.reflect.Method;
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.res.Resources;
@@ -11,14 +13,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
 import ps.reso.instaeclipse.utils.log.ModuleLog;
@@ -31,6 +32,9 @@ import ps.reso.instaeclipse.utils.log.ModuleLog;
  * Meta AI from replying) is handled in IGNetworkInterceptor under the same flag.
  */
 public class RemoveMetaAIHook {
+
+    /** DexKitCache key prefix: every DexKit lookup below is cached per Instagram version. */
+    private static final String CACHE_PREFIX = "RemoveMetaAI_";
 
     private static final String[] TARGET_LAYOUTS = {
             // DM composer Meta AI buttons
@@ -76,7 +80,12 @@ public class RemoveMetaAIHook {
     }
 
     public void install(ClassLoader classLoader) {
-        XC_MethodHook inflateHook = new XC_MethodHook() {
+        MethodHook inflateHook = new MethodHook() {
+            @Override
+            protected boolean isActive() {
+                return FeatureFlags.removeMetaAI;
+            }
+
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.removeMetaAI) return;
@@ -111,13 +120,13 @@ public class RemoveMetaAIHook {
         };
 
         try {
-            XposedHelpers.findAndHookMethod(LayoutInflater.class, "inflate",
+            HookHelpers.findAndHookMethod(LayoutInflater.class, "inflate",
                     int.class, ViewGroup.class, boolean.class, inflateHook);
         } catch (Throwable t) {
             ModuleLog.line("(IE|RemoveMetaAI) ⚠️ inflate(3) hook: " + t.getMessage());
         }
         try {
-            XposedHelpers.findAndHookMethod(LayoutInflater.class, "inflate",
+            HookHelpers.findAndHookMethod(LayoutInflater.class, "inflate",
                     int.class, ViewGroup.class, inflateHook);
         } catch (Throwable t) {
             ModuleLog.line("(IE|RemoveMetaAI) ⚠️ inflate(2) hook: " + t.getMessage());
@@ -133,7 +142,7 @@ public class RemoveMetaAIHook {
      * never invokes, so nothing fired. These target the data/eligibility layer instead, which
      * runs on the normal path and carries stable strings. Needs the DexKit bridge.
      */
-    public void installReels(DexKitBridge bridge, ClassLoader classLoader) {
+    public void installReels(LazyDexKit bridge, ClassLoader classLoader) {
         installReelsCardEligibility(bridge, classLoader); // in-feed reels Meta AI card
         installVideoAttribution(bridge, classLoader);     // Meta AI attribution subtitle (video posts)
         installReelsOverflowGate(bridge, classLoader);    // reel ⋮ "Ask Meta AI" entrypoint
@@ -150,11 +159,11 @@ public class RemoveMetaAIHook {
      * fetcher — with no eligibility and no prompt data, neither the pill nor the menu entry is built.
      * Anchored on stable trace-marker strings (classes are obfuscated). Both are gated on the flag.
      */
-    private void installReelContentDeepDive(DexKitBridge bridge, ClassLoader cl) {
+    private void installReelContentDeepDive(LazyDexKit bridge, ClassLoader cl) {
         // Gate: shouldShowContentDeepDivePrompt(...) -> force false. Return type may be boolean OR
         // boxed Boolean, so decide at runtime from the hooked method's actual return type (never
         // clobber a non-boolean return).
-        XC_MethodHook forceFalse = new XC_MethodHook() {
+        MethodHook forceFalse = new MethodHook() {
             @Override protected void beforeHookedMethod(MethodHookParam p) {
                 if (!FeatureFlags.removeMetaAI) return;
                 try {
@@ -168,7 +177,7 @@ public class RemoveMetaAIHook {
                 "cdd-should-show", null);
         // Also blank the Content Deep Dive UI-state builder (getUiState) — belt and braces if the
         // gate lives elsewhere: with an empty/blanked ui-state the pill/entry has nothing to show.
-        XC_MethodHook blankUiState = new XC_MethodHook() {
+        MethodHook blankUiState = new MethodHook() {
             @Override protected void afterHookedMethod(MethodHookParam p) {
                 if (!FeatureFlags.removeMetaAI) return;
                 Object r = p.getResult();
@@ -185,7 +194,7 @@ public class RemoveMetaAIHook {
         hookByMarker(bridge, cl, blankUiState,
                 "android_purge_26_q3_ContentDeepDiveUseCase_getUiState", "cdd-uistate", null);
         // Fetcher: skip fetching prompt data so there is nothing to render.
-        XC_MethodHook skip = new XC_MethodHook() {
+        MethodHook skip = new MethodHook() {
             @Override protected void beforeHookedMethod(MethodHookParam p) {
                 if (FeatureFlags.removeMetaAI) p.setResult(null);
             }
@@ -198,7 +207,7 @@ public class RemoveMetaAIHook {
         // ClipsOrganicMediaItemViewMoreOptionsController.maybeAddGenAIInfoRow(...). Skip that method
         // so the row is never appended. Only skip if it's void (a side-effecting row-adder) — never
         // clobber a method that returns a value the caller uses.
-        XC_MethodHook skipIfVoid = new XC_MethodHook() {
+        MethodHook skipIfVoid = new MethodHook() {
             @Override protected void beforeHookedMethod(MethodHookParam p) {
                 if (!FeatureFlags.removeMetaAI) return;
                 try {
@@ -213,14 +222,15 @@ public class RemoveMetaAIHook {
 
     /** Hook every method carrying a trace-marker string; if returnTypeFilter is non-null, only hook
      *  methods with that return type (guards the force-false against non-boolean overloads). */
-    private void hookByMarker(DexKitBridge bridge, ClassLoader cl, XC_MethodHook hook,
+    private void hookByMarker(LazyDexKit bridge, ClassLoader cl, MethodHook hook,
                               String marker, String label, String returnTypeFilter) {
         int n = 0;
         try {
             MethodMatcher mm = MethodMatcher.create().usingStrings(marker);
             if (returnTypeFilter != null) mm = mm.returnType(returnTypeFilter);
-            for (MethodData md : bridge.findMethod(FindMethod.create().matcher(mm))) {
-                try { XposedBridge.hookMethod(md.getMethodInstance(cl), hook); n++; } catch (Throwable ignored) {}
+            for (Method m : bridge.findMethodsCached(CACHE_PREFIX + label, cl,
+                    FindMethod.create().matcher(mm))) {
+                try { HookBridge.hookMethod(m, hook); n++; } catch (Throwable ignored) {}
             }
         } catch (Throwable t) {
             ModuleLog.line("(IE|RemoveMetaAI) ⚠️ " + label + ": " + t.getMessage());
@@ -235,8 +245,8 @@ public class RemoveMetaAIHook {
      * (the class itself is obfuscated) and empty its result at runtime. Only collection/map results
      * are cleared; anything else is left untouched (and its type logged) so we never break the SERP.
      */
-    private void installSearchSerpMetaAiHcm(DexKitBridge bridge, ClassLoader cl) {
-        XC_MethodHook neuter = new XC_MethodHook() {
+    private void installSearchSerpMetaAiHcm(LazyDexKit bridge, ClassLoader cl) {
+        MethodHook neuter = new MethodHook() {
             @Override protected void afterHookedMethod(MethodHookParam p) {
                 if (!FeatureFlags.removeMetaAI) return;
                 Object r = p.getResult();
@@ -251,9 +261,9 @@ public class RemoveMetaAIHook {
         };
         int n = 0;
         try {
-            for (MethodData md : bridge.findMethod(FindMethod.create().matcher(MethodMatcher.create()
-                    .usingStrings("android_purge_26_q2_ClipsTopSerpDataSource_createDefaultMetaAIHcmFetchResults")))) {
-                try { XposedBridge.hookMethod(md.getMethodInstance(cl), neuter); n++; } catch (Throwable ignored) {}
+            for (Method m : bridge.findMethodsUsingStringCached(CACHE_PREFIX + "search-serp-hcm", cl,
+                    "android_purge_26_q2_ClipsTopSerpDataSource_createDefaultMetaAIHcmFetchResults")) {
+                try { HookBridge.hookMethod(m, neuter); n++; } catch (Throwable ignored) {}
             }
         } catch (Throwable t) {
             ModuleLog.line("(IE|RemoveMetaAI) ⚠️ search-serp-hcm: " + t.getMessage());
@@ -268,8 +278,8 @@ public class RemoveMetaAIHook {
      * Anchored on the fetcher's stable trace markers; the method only reads+clears sets, so a
      * no-op is side-effect-safe.
      */
-    private void installReelsCardEligibility(DexKitBridge bridge, ClassLoader cl) {
-        XC_MethodHook skip = new XC_MethodHook() {
+    private void installReelsCardEligibility(LazyDexKit bridge, ClassLoader cl) {
+        MethodHook skip = new MethodHook() {
             @Override protected void beforeHookedMethod(MethodHookParam p) {
                 if (FeatureFlags.removeMetaAI) p.setResult(null); // void → skip candidate build/inject
             }
@@ -280,19 +290,14 @@ public class RemoveMetaAIHook {
                 "android_purge_26_q3_MetaAiClipsEligibilityFetcher_onClipsItemsRequestSuccess", // IG 446+
         };
         int n = 0;
-        java.util.Set<String> hooked = new HashSet<>();
-        for (String a : anchors) {
-            try {
-                for (MethodData md : bridge.findMethod(FindMethod.create()
-                        .matcher(MethodMatcher.create().usingStrings(a)))) {
-                    String key = md.getDescriptor();
-                    if (!hooked.add(key)) continue; // both markers live on the same method
-                    try { XposedBridge.hookMethod(md.getMethodInstance(cl), skip); n++; }
-                    catch (Throwable ignored) {}
-                }
-            } catch (Throwable t) {
-                ModuleLog.line("(IE|RemoveMetaAI) ⚠️ reels-card anchor " + a + ": " + t.getMessage());
+        try {
+            // One pass for all markers; a method carrying several markers is returned once.
+            for (Method m : bridge.findMethodsUsingAnyStringCached(CACHE_PREFIX + "reels-card", cl, anchors)) {
+                try { HookBridge.hookMethod(m, skip); n++; }
+                catch (Throwable ignored) {}
             }
+        } catch (Throwable t) {
+            ModuleLog.line("(IE|RemoveMetaAI) ⚠️ reels-card anchors: " + t.getMessage());
         }
         ModuleLog.line("(IE|RemoveMetaAI) reels-card eligibility: " + n + " method(s)");
     }
@@ -303,8 +308,8 @@ public class RemoveMetaAIHook {
      * the result (a downstream final field would NPE), so we blank the UI-state's String fields
      * — the row then renders no Meta AI text. Anchored on the use-case's stable marker string.
      */
-    private void installVideoAttribution(DexKitBridge bridge, ClassLoader cl) {
-        XC_MethodHook blank = new XC_MethodHook() {
+    private void installVideoAttribution(LazyDexKit bridge, ClassLoader cl) {
+        MethodHook blank = new MethodHook() {
             @Override protected void afterHookedMethod(MethodHookParam p) {
                 if (!FeatureFlags.removeMetaAI) return;
                 Object r = p.getResult();
@@ -321,10 +326,9 @@ public class RemoveMetaAIHook {
         };
         int n = 0;
         try {
-            for (MethodData md : bridge.findMethod(FindMethod.create()
-                    .matcher(MethodMatcher.create()
-                            .usingStrings("android_purge_26_q3_MetaAIVideoAttributionSubtitleUseCase_getUiState")))) {
-                try { XposedBridge.hookMethod(md.getMethodInstance(cl), blank); n++; }
+            for (Method m : bridge.findMethodsUsingStringCached(CACHE_PREFIX + "video-attribution", cl,
+                    "android_purge_26_q3_MetaAIVideoAttributionSubtitleUseCase_getUiState")) {
+                try { HookBridge.hookMethod(m, blank); n++; }
                 catch (Throwable ignored) {}
             }
         } catch (Throwable t) {
@@ -343,8 +347,8 @@ public class RemoveMetaAIHook {
     private static final long META_AI_GATE_ID_1 = 0x81111100005b47L;
     private static final long META_AI_GATE_ID_2 = 0x81106e000057c2L;
 
-    private void installReelsOverflowGate(DexKitBridge bridge, ClassLoader classLoader) {
-        XC_MethodHook forceFalse = new XC_MethodHook() {
+    private void installReelsOverflowGate(LazyDexKit bridge, ClassLoader classLoader) {
+        MethodHook forceFalse = new MethodHook() {
             @Override protected void beforeHookedMethod(MethodHookParam param) {
                 if (FeatureFlags.removeMetaAI) param.setResult(false);
             }
@@ -355,15 +359,16 @@ public class RemoveMetaAIHook {
         ModuleLog.line("(IE|RemoveMetaAI) reels-overflow gate: " + n + " method(s)");
     }
 
-    private int hookGate(DexKitBridge bridge, ClassLoader cl, XC_MethodHook hook, Number[] ids) {
+    private int hookGate(LazyDexKit bridge, ClassLoader cl, MethodHook hook, Number[] ids) {
         int n = 0;
         try {
             MethodMatcher m = MethodMatcher.create()
                     .returnType("boolean")
                     .paramTypes("com.instagram.common.session.UserSession")
                     .usingNumbers(ids);
-            for (MethodData md : bridge.findMethod(FindMethod.create().matcher(m))) {
-                try { XposedBridge.hookMethod(md.getMethodInstance(cl), hook); n++; }
+            String key = CACHE_PREFIX + "gate-" + java.util.Arrays.toString(ids);
+            for (Method method : bridge.findMethodsCached(key, cl, FindMethod.create().matcher(m))) {
+                try { HookBridge.hookMethod(method, hook); n++; }
                 catch (Throwable ignored) {}
             }
         } catch (Throwable t) {
@@ -378,9 +383,9 @@ public class RemoveMetaAIHook {
      * we hook the list builders (anchored by their referenced enum fields) and remove any option
      * whose enum name is a Meta-AI one. Stable-field anchored — no obfuscated X.* names.
      */
-    private void installMenuOptionFilter(DexKitBridge bridge, ClassLoader cl) {
+    private void installMenuOptionFilter(LazyDexKit bridge, ClassLoader cl) {
         final String od = "Lcom/instagram/feed/media/mediaoption/MediaOption$Option;";
-        XC_MethodHook filter = new XC_MethodHook() {
+        MethodHook filter = new MethodHook() {
             @Override protected void afterHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.removeMetaAI) return;
                 Object r = param.getResult();
@@ -388,11 +393,11 @@ public class RemoveMetaAIHook {
                 try {
                     List<?> src = (List<?>) r;
                     long now = System.currentTimeMillis();
-                    if (now - lastMenuLog > 1500) {
+                    if (ModuleLog.verbose && now - lastMenuLog > 1500) {
                         lastMenuLog = now;
                         StringBuilder sb = new StringBuilder();
                         for (Object o : src) sb.append(o).append(",");
-                        ModuleLog.line("(IE|RemoveMetaAI|PROBE) menu opts=[" + sb + "]");
+                        ModuleLog.probe("(IE|RemoveMetaAI|PROBE) menu opts=[" + sb + "]");
                     }
                     List<Object> keep = new java.util.ArrayList<>(src.size());
                     boolean changed = false;
@@ -429,11 +434,11 @@ public class RemoveMetaAIHook {
                 .addUsingField(od + "->UNSAVE:" + od)), "reel-options");
     }
 
-    private void hookBuilder(DexKitBridge bridge, ClassLoader cl, XC_MethodHook hook, FindMethod q, String label) {
+    private void hookBuilder(LazyDexKit bridge, ClassLoader cl, MethodHook hook, FindMethod q, String label) {
         try {
             int n = 0;
-            for (MethodData md : bridge.findMethod(q)) {
-                try { XposedBridge.hookMethod(md.getMethodInstance(cl), hook); n++; } catch (Throwable ignored) {}
+            for (Method m : bridge.findMethodsCached(CACHE_PREFIX + label, cl, q)) {
+                try { HookBridge.hookMethod(m, hook); n++; } catch (Throwable ignored) {}
             }
             ModuleLog.line("(IE|RemoveMetaAI) " + label + " filter: " + n + " method(s)");
         } catch (Throwable t) {

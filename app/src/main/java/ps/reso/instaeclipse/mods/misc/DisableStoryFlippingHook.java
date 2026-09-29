@@ -1,6 +1,6 @@
 package ps.reso.instaeclipse.mods.misc;
 
-import org.luckypray.dexkit.DexKitBridge;
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
@@ -8,8 +8,8 @@ import org.luckypray.dexkit.result.MethodData;
 import java.lang.reflect.Method;
 import java.util.List;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.Xposed.Module;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
@@ -17,18 +17,18 @@ import ps.reso.instaeclipse.utils.log.ModuleLog;
 
 public class DisableStoryFlippingHook {
 
-    private static final XC_MethodHook HOOK = new XC_MethodHook() {
+    private static final MethodHook HOOK = new MethodHook() {
         @Override
         protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
             if (FeatureFlags.disableStoryFlipping) param.setResult(null);
         }
     };
 
-    public void handleStoryFlippingDisable(DexKitBridge bridge) {
+    public void handleStoryFlippingDisable(LazyDexKit bridge) {
         if (DexKitCache.isCacheValid()) {
             Method cached = DexKitCache.loadMethod("StoryFlipping", Module.hostClassLoader);
             if (cached != null) {
-                XposedBridge.hookMethod(cached, HOOK);
+                HookBridge.hookMethod(cached, HOOK);
                 ModuleLog.line("(InstaEclipse | StoryFlipping): ✅ Hooked (dynamic check): " + cached.getDeclaringClass().getName() + "." + cached.getName());
                 return;
             }
@@ -40,7 +40,7 @@ public class DisableStoryFlippingHook {
         }
     }
 
-    private void findAndHookMethod(DexKitBridge bridge) {
+    private void findAndHookMethod(LazyDexKit bridge) {
         try {
             // Step 1: Find methods matching the targeted method structure
             List<MethodData> methods = bridge.findMethod(
@@ -63,7 +63,7 @@ public class DisableStoryFlippingHook {
                 try {
                     Method targetMethod = method.getMethodInstance(Module.hostClassLoader);
                     DexKitCache.saveMethod("StoryFlipping", targetMethod);
-                    XposedBridge.hookMethod(targetMethod, HOOK);
+                    HookBridge.hookMethod(targetMethod, HOOK);
 
                     ModuleLog.line("(InstaEclipse | StoryFlipping): ✅ Hooked (dynamic check): " +
                             method.getClassName() + "." + method.getName());

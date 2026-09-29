@@ -7,7 +7,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.utils.log.ModuleLog;
 
 /**
@@ -123,6 +123,63 @@ public class DexKitCache {
             result.add(m);
         }
         return result;
+    }
+
+    // ── Methods and constructors ─────────────────────────────────────────────
+
+    /** Like {@link #saveMethods} but also accepts constructors. */
+    public static void saveMembers(String key, List<? extends java.lang.reflect.Member> members) {
+        if (prefs == null || members == null) return;
+        SharedPreferences.Editor ed = prefs.edit();
+        ed.putInt("xc_" + key, members.size());
+        for (int i = 0; i < members.size(); i++) {
+            java.lang.reflect.Member m = members.get(i);
+            String enc = m instanceof java.lang.reflect.Constructor<?> c
+                    ? "C" + c.getDeclaringClass().getName() + SEP + ctorDescriptor(c)
+                    : "M" + encode((Method) m);
+            ed.putString("x_" + key + "_" + i, enc);
+        }
+        ed.apply();
+    }
+
+    /** Cached methods/constructors, or {@code null} if missing or any entry can't be resolved. */
+    public static List<java.lang.reflect.Member> loadMembers(String key, ClassLoader loader) {
+        if (prefs == null) return null;
+        int count = prefs.getInt("xc_" + key, -1);
+        if (count < 0) return null;
+        List<java.lang.reflect.Member> result = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            String val = prefs.getString("x_" + key + "_" + i, null);
+            if (val == null || val.isEmpty()) return null;
+            java.lang.reflect.Member m = val.charAt(0) == 'C'
+                    ? decodeCtor(val.substring(1), loader)
+                    : decode(val.substring(1), loader);
+            if (m == null) return null;
+            result.add(m);
+        }
+        return result;
+    }
+
+    private static java.lang.reflect.Constructor<?> decodeCtor(String encoded, ClassLoader loader) {
+        try {
+            int i1 = encoded.indexOf(SEP);
+            if (i1 < 0) return null;
+            Class<?> clazz = Class.forName(encoded.substring(0, i1), false, loader);
+            String desc = encoded.substring(i1 + 1);
+            for (java.lang.reflect.Constructor<?> c : clazz.getDeclaredConstructors()) {
+                if (ctorDescriptor(c).equals(desc)) {
+                    c.setAccessible(true);
+                    return c;
+                }
+            }
+        } catch (Throwable ignored) {}
+        return null;
+    }
+
+    private static String ctorDescriptor(java.lang.reflect.Constructor<?> c) {
+        StringBuilder sb = new StringBuilder("(");
+        for (Class<?> p : c.getParameterTypes()) typeDesc(sb, p);
+        return sb.append(")V").toString();
     }
 
     // ── Arbitrary strings (class names, etc.) ────────────────────────────────

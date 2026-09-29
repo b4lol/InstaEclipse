@@ -1,5 +1,7 @@
 package ps.reso.instaeclipse.mods.media;
 
+import ps.reso.instaeclipse.hook.ViewAttachDispatcher;
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -40,7 +42,6 @@ import android.widget.Toast;
 
 import androidx.annotation.RequiresApi;
 
-import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.enums.StringMatchType;
@@ -73,11 +74,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.utils.ui.ResIds;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
@@ -130,7 +131,8 @@ public class FeedVideoDownloadHook {
     private static final Deque<UrlEntry> urlBuffer      = new ArrayDeque<>();
     private static final Deque<UrlEntry> videoUrlBuffer = new ArrayDeque<>(); // DexKit-captured video URLs
     private static final WeakHashMap<View, List<String>> buttonUrls = new WeakHashMap<>();
-    static final ExecutorService executor    = Executors.newCachedThreadPool();
+    // Bounded: a burst (e.g. a 10-item carousel) queues instead of spawning 10 threads.
+    static final ExecutorService executor    = MediaHttp.newDownloadExecutor(3);
     static final Handler         mainHandler = new Handler(Looper.getMainLooper());
 
     // Username + media ID resolved at download trigger time
@@ -184,8 +186,14 @@ public class FeedVideoDownloadHook {
 
     private void installUriCaptureHook() {
         try {
-            XposedHelpers.findAndHookMethod(Uri.class, "parse", String.class,
-                    new XC_MethodHook() {
+            HookHelpers.findAndHookMethod(Uri.class, "parse", String.class,
+                    new MethodHook() {
+                        // Uri.parse runs app-wide; skip all work while downloads are off.
+                        @Override
+                        protected boolean isActive() {
+                            return FeatureFlags.enablePostDownload;
+                        }
+
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
                             try {
@@ -213,28 +221,28 @@ public class FeedVideoDownloadHook {
 
     private void installViewHook() {
         try {
-            XposedHelpers.findAndHookMethod(View.class, "onAttachedToWindow",
-                    new XC_MethodHook() {
+            ViewAttachDispatcher.register(new ViewAttachDispatcher.Listener() {
+                        // Shared View.onAttachedToWindow hook: runs for every attached view, so only
+                        // compare ids here; nothing runs at all while the feature is off.
                         @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            if (!FeatureFlags.enablePostDownload) return;
-                            View view = (View) param.thisObject;
+                        public boolean isActive() {
+                            return FeatureFlags.enablePostDownload;
+                        }
+
+                        @Override
+                        public void onAttached(View view) {
                             Context ctx = view.getContext();
 
-                            @SuppressLint("DiscouragedApi")
-                            int feedLikeId = ctx.getResources().getIdentifier(
-                                    "row_feed_button_like", "id", ctx.getPackageName());
-                            @SuppressLint("DiscouragedApi")
-                            int reelLikeId = ctx.getResources().getIdentifier(
-                                    "like_button", "id", ctx.getPackageName());
-                            @SuppressLint("DiscouragedApi")
-                            int clipsUfiId = ctx.getResources().getIdentifier(
-                                    "clips_ufi_component", "id", ctx.getPackageName());
-
+                            // Ids are resolved once per process; this hook runs for every
+                            // attached view in the app, so no string lookups here.
                             int viewId = view.getId();
+                            if (viewId == View.NO_ID) return;
+                            int feedLikeId = ResIds.id(ctx, "row_feed_button_like");
+                            int reelLikeId = ResIds.id(ctx, "like_button");
+
                             boolean isFeedLike = feedLikeId != 0 && viewId == feedLikeId;
                             boolean isReelLike = reelLikeId != 0 && viewId == reelLikeId
-                                    && hasAncestorWithId(view, clipsUfiId);
+                                    && hasAncestorWithId(view, ResIds.id(ctx, "clips_ufi_component"));
 
                             if (!isFeedLike && !isReelLike) return;
                             if (!(view.getParent() instanceof ViewGroup parent)) return;
@@ -1067,12 +1075,12 @@ public class FeedVideoDownloadHook {
      *
      * Used as a supplement to the Uri.parse buffer (Tier 3) when Tiers 1 and 2 fail.
      */
-    public static void installVideoUrlCaptureHook(DexKitBridge bridge, ClassLoader classLoader) {
+    public static void installVideoUrlCaptureHook(LazyDexKit bridge, ClassLoader classLoader) {
         discoverDynamicMediaModel(bridge, classLoader);
         resolveVideoVersionsGetters(bridge, classLoader);
         resolveCarouselGetter(bridge, classLoader);
         resolveIsVideoMethod(bridge, classLoader);
-        XC_MethodHook urlHook = new XC_MethodHook() {
+        MethodHook urlHook = new MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.enablePostDownload) return;
@@ -1086,8 +1094,9 @@ public class FeedVideoDownloadHook {
         // Cache hit: hook all previously-found getUrl() implementations directly
         if (DexKitCache.isCacheValid()) {
             List<Method> cached = DexKitCache.loadMethods("VideoUrlCapture", classLoader);
-            if (cached != null && !cached.isEmpty()) {
-                for (Method m : cached) XposedBridge.hookMethod(m, urlHook);
+            // An empty list is a valid cached answer (no implementors in this IG version).
+            if (cached != null) {
+                for (Method m : cached) HookBridge.hookMethod(m, urlHook);
                 ModuleLog.line("(IE|DL|DexKit) VideoUrlCapture: " + cached.size() + " method(s) from cache");
                 resolveUsernameGetter(bridge, classLoader);
                 return;
@@ -1115,7 +1124,7 @@ public class FeedVideoDownloadHook {
                     for (MethodData methodData : methods) {
                         try {
                             Method m = methodData.getMethodInstance(classLoader);
-                            XposedBridge.hookMethod(m, urlHook);
+                            HookBridge.hookMethod(m, urlHook);
                             ModuleLog.line("(IE|DL|DexKit) ✅ Hooked getUrl() on "
                                     + classData.getName());
                             hooked.add(m);
@@ -1129,7 +1138,7 @@ public class FeedVideoDownloadHook {
                             + classData.getName() + ": " + e.getMessage());
                 }
             }
-            if (!hooked.isEmpty()) DexKitCache.saveMethods("VideoUrlCapture", hooked);
+            DexKitCache.saveMethods("VideoUrlCapture", hooked);
         } catch (Throwable e) {
             ModuleLog.line("(IE|DL|DexKit) ❌ installVideoUrlCaptureHook: " + e.getMessage());
         }
@@ -1137,7 +1146,7 @@ public class FeedVideoDownloadHook {
         resolveUsernameGetter(bridge, classLoader);
     }
 
-    private static void discoverDynamicMediaModel(DexKitBridge bridge, ClassLoader classLoader) {
+    private static void discoverDynamicMediaModel(LazyDexKit bridge, ClassLoader classLoader) {
         try {
             Class<?> discovered = null;
             if (DexKitCache.isCacheValid()) {
@@ -1181,7 +1190,7 @@ public class FeedVideoDownloadHook {
         }
     }
 
-    private static void resolveVideoVersionsGetters(DexKitBridge bridge, ClassLoader classLoader) {
+    private static void resolveVideoVersionsGetters(LazyDexKit bridge, ClassLoader classLoader) {
         resolvedVideoVersionsGetters.clear();
         try {
             if (DexKitCache.isCacheValid()) {
@@ -1246,7 +1255,7 @@ public class FeedVideoDownloadHook {
      * (no obfuscated X.* name), cached, and prepended to carouselCandidates. Absent on older builds
      * (they keep using the dict path), so this stays backward-compatible.
      */
-    private static void resolveCarouselGetter(DexKitBridge bridge, ClassLoader classLoader) {
+    private static void resolveCarouselGetter(LazyDexKit bridge, ClassLoader classLoader) {
         try {
             if (DexKitCache.isCacheValid()) {
                 Method cached = DexKitCache.loadMethod("MediaDownload_CarouselGetter", classLoader);
@@ -1283,7 +1292,7 @@ public class FeedVideoDownloadHook {
         }
     }
 
-    private static void resolveIsVideoMethod(DexKitBridge bridge, ClassLoader classLoader) {
+    private static void resolveIsVideoMethod(LazyDexKit bridge, ClassLoader classLoader) {
         try {
             if (DexKitCache.isCacheValid()) {
                 resolvedIsVideoMethod = DexKitCache.loadMethod(
@@ -1324,7 +1333,7 @@ public class FeedVideoDownloadHook {
      * returns an instance of that class. This gives us a stable way to get the post author
      * from the LiveTreeMediaDict without guessing obfuscated method names.
      */
-    private static void resolveUsernameGetter(DexKitBridge bridge, ClassLoader classLoader) {
+    private static void resolveUsernameGetter(LazyDexKit bridge, ClassLoader classLoader) {
         // Cache hit: restore userClass and userUsernameGetter without DexKit
         if (DexKitCache.isCacheValid()) {
             String cachedClassName = DexKitCache.loadString("UserClass");
@@ -1421,7 +1430,7 @@ public class FeedVideoDownloadHook {
      * invoke it directly on the Media object. On older builds that lack such a getter this resolves
      * to nothing and the existing dict-based path is used unchanged.
      */
-    private static void resolveMediaAuthorGetter(DexKitBridge bridge, ClassLoader classLoader) {
+    private static void resolveMediaAuthorGetter(LazyDexKit bridge, ClassLoader classLoader) {
         if (mediaAuthorGetter != null || userClass == null) return;
 
         if (DexKitCache.isCacheValid()) {
@@ -1450,7 +1459,7 @@ public class FeedVideoDownloadHook {
         }
     }
 
-    private static void resolveDictUserGetter(DexKitBridge bridge, ClassLoader classLoader) {
+    private static void resolveDictUserGetter(LazyDexKit bridge, ClassLoader classLoader) {
         if ((mutableMediaDictIntfClass == null && liveTreeMediaDictClass == null)
                 || userClass == null) return;
 
@@ -1460,6 +1469,9 @@ public class FeedVideoDownloadHook {
                 dictUserGetter = cached;
                 return;
             }
+            // Not resolvable in this IG version: the other username strategies are used, and
+            // there's no point repeating the DexKit search on every launch.
+            if ("missing".equals(DexKitCache.loadString("DictUserGetter"))) return;
         }
 
         // Use a Breadth-First Search to find the getter in the interface hierarchy
@@ -1519,6 +1531,7 @@ public class FeedVideoDownloadHook {
         }
 
         ModuleLog.line("(IE|DL|Username) ❌ Failed to resolve dictUserGetter in hierarchy");
+        DexKitCache.saveString("DictUserGetter", "missing");
     }
 
     // ── Download dispatch ─────────────────────────────────────────────────────
@@ -1814,16 +1827,14 @@ public class FeedVideoDownloadHook {
     }
 
     /**
-     * Reads the companion app's latest SAF URI from its shared prefs WITHOUT overwriting
-     * FeatureFlags — callers decide what to do with the value.
+     * Reads the companion app's latest SAF URI from the framework's remote preferences
+     * WITHOUT overwriting FeatureFlags — callers decide what to do with the value.
      */
     private static String readCompanionUri() {
         try {
-            de.robv.android.xposed.XSharedPreferences cp =
-                    new de.robv.android.xposed.XSharedPreferences(
-                            "ps.reso.instaeclipse", "instaeclipse_cache");
-            cp.reload();
-            return cp.getString("downloaderCustomUri", "");
+            return ps.reso.instaeclipse.hook.HookBridge.framework()
+                    .getRemotePreferences(ps.reso.instaeclipse.utils.core.RemotePrefs.GROUP)
+                    .getString(ps.reso.instaeclipse.utils.core.RemotePrefs.KEY_DOWNLOADER_URI, "");
         } catch (Throwable t) {
             return "";
         }
@@ -2665,6 +2676,7 @@ public class FeedVideoDownloadHook {
 
     private static String downloadToFileAndGetType(String url, File dest) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        MediaHttp.applyTimeouts(conn);
         conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36");
         conn.connect();
         String contentType = conn.getContentType();
@@ -2677,6 +2689,7 @@ public class FeedVideoDownloadHook {
 
     static void downloadToStream(String url, OutputStream out) throws Exception {
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        MediaHttp.applyTimeouts(conn);
         conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36");
         conn.connect();
         try (InputStream in = conn.getInputStream()) {

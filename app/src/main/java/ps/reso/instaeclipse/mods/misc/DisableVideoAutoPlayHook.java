@@ -1,5 +1,6 @@
 package ps.reso.instaeclipse.mods.misc;
 
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.view.View;
@@ -7,7 +8,6 @@ import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.widget.ImageView;
 
-import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
@@ -18,9 +18,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.HostApp;
+import ps.reso.instaeclipse.utils.ui.ResIds;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.Xposed.Module;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
@@ -35,7 +37,7 @@ public class DisableVideoAutoPlayHook {
 
     private static volatile boolean sOverlayLifecycleHooked = false;
 
-    public void handleAutoPlayDisable(DexKitBridge bridge) {
+    public void handleAutoPlayDisable(LazyDexKit bridge) {
         hookManualPlayOverlayLifecycle();
         if (DexKitCache.isCacheValid()) {
             Method cached = DexKitCache.loadMethod("AutoPlayDisable", Module.hostClassLoader);
@@ -51,7 +53,7 @@ public class DisableVideoAutoPlayHook {
         }
     }
 
-    private void findAndHookDynamicMethod(DexKitBridge bridge) {
+    private void findAndHookDynamicMethod(LazyDexKit bridge) {
         try {
             // Step 1: Find methods referencing "ig_disable_video_autoplay"
             List<MethodData> methods = bridge.findMethod(FindMethod.create()
@@ -95,7 +97,7 @@ public class DisableVideoAutoPlayHook {
     }
 
     private void hookMethod(Method targetMethod) {
-        XposedBridge.hookMethod(targetMethod, new XC_MethodHook() {
+        HookBridge.hookMethod(targetMethod, new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 if (FeatureFlags.disableVideoAutoPlay) param.setResult(true);
@@ -121,7 +123,12 @@ public class DisableVideoAutoPlayHook {
     }
 
     private void hookPlayDrawableLoads() {
-        XC_MethodHook hook = new XC_MethodHook() {
+        MethodHook hook = new MethodHook() {
+            @Override
+            protected boolean isActive() {
+                return FeatureFlags.disableVideoAutoPlay;
+            }
+
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                 if (!FeatureFlags.disableVideoAutoPlay) return;
@@ -136,12 +143,17 @@ public class DisableVideoAutoPlayHook {
             }
         };
 
-        XposedBridge.hookAllMethods(Resources.class, "getDrawable", hook);
-        XposedBridge.hookAllMethods(Resources.class, "getDrawableForDensity", hook);
+        HookBridge.hookAllMethods(Resources.class, "getDrawable", hook);
+        HookBridge.hookAllMethods(Resources.class, "getDrawableForDensity", hook);
     }
 
     private void hookPlayImageBinding() {
-        XposedBridge.hookAllMethods(ImageView.class, "setImageResource", new XC_MethodHook() {
+        HookBridge.hookAllMethods(ImageView.class, "setImageResource", new MethodHook() {
+            @Override
+            protected boolean isActive() {
+                return FeatureFlags.disableVideoAutoPlay;
+            }
+
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                 if (!FeatureFlags.disableVideoAutoPlay) return;
@@ -156,7 +168,12 @@ public class DisableVideoAutoPlayHook {
             }
         });
 
-        XposedBridge.hookAllMethods(ImageView.class, "setImageDrawable", new XC_MethodHook() {
+        HookBridge.hookAllMethods(ImageView.class, "setImageDrawable", new MethodHook() {
+            @Override
+            protected boolean isActive() {
+                return FeatureFlags.disableVideoAutoPlay;
+            }
+
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                 if (!FeatureFlags.disableVideoAutoPlay) return;
@@ -172,7 +189,12 @@ public class DisableVideoAutoPlayHook {
     }
 
     private void hookPlayOverlayClicks() {
-        XC_MethodHook clickHook = new XC_MethodHook() {
+        MethodHook clickHook = new MethodHook() {
+            @Override
+            protected boolean isActive() {
+                return FeatureFlags.disableVideoAutoPlay;
+            }
+
             @Override
             protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                 if (!FeatureFlags.disableVideoAutoPlay || !(param.thisObject instanceof View)) return;
@@ -184,8 +206,8 @@ public class DisableVideoAutoPlayHook {
             }
         };
 
-        XposedBridge.hookAllMethods(View.class, "performClick", clickHook);
-        XposedBridge.hookAllMethods(View.class, "callOnClick", clickHook);
+        HookBridge.hookAllMethods(View.class, "performClick", clickHook);
+        HookBridge.hookAllMethods(View.class, "callOnClick", clickHook);
     }
 
     private static void schedulePlayOverlayHide(final View clickedView) {
@@ -330,8 +352,16 @@ public class DisableVideoAutoPlayHook {
                 || "mention_thumbnail_video_play_button".equals(name);
     }
 
+    /** Runs on every Resources.getDrawable / ImageView.setImageResource while the feature is on,
+     *  so it compares against ids resolved once instead of looking up resource names. */
     private static boolean isManualVideoPlayDrawableResource(Resources resources, int resId) {
         if (resources == null || resId == 0) return false;
+        android.content.Context app = HostApp.get();
+        if (app != null) {
+            int small = ResIds.drawable(app, "play_button");
+            int large = ResIds.drawable(app, "play_button_large");
+            return (small != 0 && resId == small) || (large != 0 && resId == large);
+        }
         try {
             String type = resources.getResourceTypeName(resId);
             if (!"drawable".equals(type)) return false;
@@ -367,11 +397,11 @@ public class DisableVideoAutoPlayHook {
     }
 
     private static void markPlayDrawableView(ImageView imageView) {
-        XposedHelpers.setAdditionalInstanceField(imageView, PLAY_DRAWABLE_FIELD, Boolean.TRUE);
+        HookHelpers.setAdditionalInstanceField(imageView, PLAY_DRAWABLE_FIELD, Boolean.TRUE);
     }
 
     private static boolean isMarkedPlayDrawableView(View view) {
         return view instanceof ImageView
-                && Boolean.TRUE.equals(XposedHelpers.getAdditionalInstanceField(view, PLAY_DRAWABLE_FIELD));
+                && Boolean.TRUE.equals(HookHelpers.getAdditionalInstanceField(view, PLAY_DRAWABLE_FIELD));
     }
 }

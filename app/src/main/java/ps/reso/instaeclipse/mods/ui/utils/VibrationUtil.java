@@ -5,11 +5,13 @@ import android.content.Context;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.utils.log.ModuleLog;
 
 public class VibrationUtil {
-    @SuppressLint("ObsoleteSdkInt")
+    // Runs inside Instagram's process, so Instagram's VIBRATE permission applies,
+    // not the companion's manifest.
+    @SuppressLint({"ObsoleteSdkInt", "MissingPermission"})
     public static void vibrate(Context context) {
         try {
             Vibrator v = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);

@@ -7,7 +7,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -19,7 +18,6 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import java.util.concurrent.ExecutorService;
@@ -28,6 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.utils.core.CommonUtils;
+import ps.reso.instaeclipse.utils.core.IpcSecurity;
 import ps.reso.instaeclipse.utils.log.Logging;
 
 /**
@@ -44,6 +43,8 @@ public class LoggingFragment extends Fragment {
     private TextView lineCountView;
     private Runnable pendingTimeout;
     private String companionSection = "";
+    /** Nonce of the outstanding ACTION_REQUEST_LOGS; replies without it are dropped. */
+    private volatile String logsNonce;
 
     private final ExecutorService loadExecutor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -53,6 +54,7 @@ public class LoggingFragment extends Fragment {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (!CommonUtils.ACTION_LOGS_REPLY.equals(intent.getAction()) || contentView == null) return;
+            if (!IpcSecurity.nonceMatches(logsNonce, intent)) return;
             int gen = loadGeneration.get();
             cancelInstagramTimeout();
             loadExecutor.execute(() -> {
@@ -91,11 +93,7 @@ public class LoggingFragment extends Fragment {
     public void onStart() {
         super.onStart();
         IntentFilter filter = new IntentFilter(CommonUtils.ACTION_LOGS_REPLY);
-        if (Build.VERSION.SDK_INT >= 33) {
-            requireContext().registerReceiver(logReplyReceiver, filter, Context.RECEIVER_EXPORTED);
-        } else {
-            ContextCompat.registerReceiver(requireContext(), logReplyReceiver, filter, ContextCompat.RECEIVER_EXPORTED);
-        }
+        IpcSecurity.registerReplyReceiver(requireContext(), logReplyReceiver, filter);
     }
 
     @Override
@@ -139,6 +137,8 @@ public class LoggingFragment extends Fragment {
                 }
                 Intent request = new Intent(CommonUtils.ACTION_REQUEST_LOGS);
                 request.setPackage(pkg);
+                logsNonce = IpcSecurity.newNonce();
+                request.putExtra(IpcSecurity.EXTRA_NONCE, logsNonce);
                 ctx.sendBroadcast(request);
                 scheduleInstagramTimeout(gen);
             });

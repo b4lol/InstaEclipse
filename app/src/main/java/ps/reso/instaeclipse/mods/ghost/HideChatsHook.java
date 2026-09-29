@@ -1,5 +1,6 @@
 package ps.reso.instaeclipse.mods.ghost;
 
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.graphics.Color;
@@ -10,7 +11,6 @@ import android.view.ViewTreeObserver;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
-import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
@@ -18,9 +18,9 @@ import org.luckypray.dexkit.result.MethodData;
 import java.lang.reflect.Field;
 import java.util.List;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
@@ -47,14 +47,14 @@ public class HideChatsHook {
     private static final String INBOX_ANCHOR = "DirectThreadStoreImpl.getSortedCopyOfThreadSummaries";
     private static int threadHeaderId, backButtonId;
 
-    public void install(DexKitBridge bridge, ClassLoader classLoader) {
+    public void install(LazyDexKit bridge, ClassLoader classLoader) {
         installInboxFilter(bridge, classLoader);
         installHeaderButton(classLoader);
     }
 
     // ── 1. Inbox thread-list filter ────────────────────────────────────────────
-    private void installInboxFilter(DexKitBridge bridge, ClassLoader classLoader) {
-        XC_MethodHook filter = new XC_MethodHook() {
+    private void installInboxFilter(LazyDexKit bridge, ClassLoader classLoader) {
+        MethodHook filter = new MethodHook() {
             @Override protected void afterHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.hideSpecificChats || HiddenThreads.isEmpty()) return;
                 Object r = param.getResult();
@@ -70,9 +70,9 @@ public class HideChatsHook {
         };
         try {
             int n = 0;
-            for (MethodData md : bridge.findMethod(FindMethod.create()
-                    .matcher(MethodMatcher.create().usingStrings(INBOX_ANCHOR)))) {
-                try { XposedBridge.hookMethod(md.getMethodInstance(classLoader), filter); n++; }
+            for (java.lang.reflect.Method m : bridge.findMethodsUsingStringCached(
+                    "HideChats_inbox", classLoader, INBOX_ANCHOR)) {
+                try { HookBridge.hookMethod(m, filter); n++; }
                 catch (Throwable ignored) {}
             }
             if (n > 0) FeatureStatusTracker.setHooked("HideSpecificChats");
@@ -103,7 +103,7 @@ public class HideChatsHook {
 
     // ── 2. Hide/unhide button in the thread header ─────────────────────────────
     private void installHeaderButton(ClassLoader classLoader) {
-        XC_MethodHook resume = new XC_MethodHook() {
+        MethodHook resume = new MethodHook() {
             @Override protected void afterHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.hideSpecificChats) return;
                 final Activity a = (Activity) param.thisObject;
@@ -112,7 +112,7 @@ public class HideChatsHook {
         };
         for (String act : new String[]{"com.instagram.modal.ModalActivity",
                 "com.instagram.mainactivity.InstagramMainActivity"}) {
-            try { XposedHelpers.findAndHookMethod(act, classLoader, "onResume", resume); }
+            try { HookHelpers.findAndHookMethod(act, classLoader, "onResume", resume); }
             catch (Throwable t) { ModuleLog.line("(IE|HideChats) ⚠️ hook " + act + ": " + t.getMessage()); }
         }
         ModuleLog.line("(IE|HideChats) ✅ installed");

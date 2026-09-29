@@ -8,6 +8,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ServiceInfo;
 import android.media.MediaCodec;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
@@ -55,12 +56,18 @@ public class DownloadSaveService extends Service {
     private static final String UA =
             "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36";
 
+    private static final int CONNECT_TIMEOUT_MS = 15_000;
+    private static final int READ_TIMEOUT_MS    = 30_000;
+    /** Hard cap on a single download so a hostile or broken stream can't fill the disk. */
+    private static final long MAX_DOWNLOAD_BYTES = 2L * 1024 * 1024 * 1024;
+
     /** Throttle: minimum ms between notification updates. */
     private static final long NOTIF_INTERVAL_MS = 250;
 
     private NotificationManager nm;
-    private long lastNotifMs  = 0;
-    private int  lastNotifPct = -1;
+    // Written from every download thread; volatile is enough for the throttle heuristic.
+    private volatile long lastNotifMs  = 0;
+    private volatile int  lastNotifPct = -1;
 
     private static final class SavedMedia {
         final Uri uri;
@@ -83,10 +90,17 @@ public class DownloadSaveService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        startForeground(NOTIF_ID, buildProgressNotification("Starting…", 0, 0, true));
+        Notification starting = buildProgressNotification("Starting…", 0, 0, true);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIF_ID, starting, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+        } else {
+            startForeground(NOTIF_ID, starting);
+        }
 
         if (intent == null) { stopSelf(startId); return START_NOT_STICKY; }
 
+        // This service is exported so Instagram's process can reach it, which means any app
+        // can start it. Only accept Instagram CDN URLs and single-segment file names.
         String url       = intent.getStringExtra("url");
         String audioUrl  = intent.getStringExtra("audioUrl"); // null → single-stream
         String filename  = intent.getStringExtra("filename");
@@ -94,6 +108,18 @@ public class DownloadSaveService extends Service {
         String username  = intent.getStringExtra("username");
 
         if (url == null || filename == null) { stopSelf(startId); return START_NOT_STICKY; }
+        if (!DownloadRequestValidator.isAllowedMediaUrl(url)
+                || (audioUrl != null && !DownloadRequestValidator.isAllowedMediaUrl(audioUrl))) {
+            ModuleLog.line("(IE|DL) Rejected download request: URL is not an Instagram CDN https URL");
+            stopSelf(startId);
+            return START_NOT_STICKY;
+        }
+        filename = DownloadRequestValidator.sanitizeFileName(filename,
+                "instaeclipse_" + System.currentTimeMillis());
+        if (username != null) username = DownloadRequestValidator.sanitizeFileName(username, null);
+        if (mimeType != null && !mimeType.startsWith("image/") && !mimeType.startsWith("video/")) {
+            mimeType = null;
+        }
 
         SharedPreferences cache = getSharedPreferences(CACHE_PREFS, Context.MODE_PRIVATE);
         String saveUri          = cache.getString("downloaderCustomUri", "");
@@ -118,8 +144,9 @@ public class DownloadSaveService extends Service {
                 postDoneNotification(sid, "Saved: " + saved.filename, saved.mimeType, saved.uri);
                 showToast(getString(R.string.ig_toast_file_saved, saved.filename));
             } catch (Throwable e) {
-                postDoneNotification(sid, "Download failed: " + e.getMessage(), null, null);
-                showToast(getString(R.string.ig_toast_download_failed, e.getMessage()));
+                String reason = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                postDoneNotification(sid, "Download failed: " + reason, null, null);
+                showToast(getString(R.string.ig_toast_download_failed, reason));
             } finally {
                 stopSelf(sid);
             }
@@ -245,11 +272,13 @@ public class DownloadSaveService extends Service {
 
     private static String downloadToFile(String url, File dest, ProgressCallback cb)
             throws Exception {
-        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-        conn.setRequestProperty("User-Agent", UA);
-        conn.connect();
+        HttpURLConnection conn = openValidatedConnection(url);
         String contentType = conn.getContentType();
         long total = conn.getContentLengthLong(); // -1 if server doesn't send Content-Length
+        if (total > MAX_DOWNLOAD_BYTES) {
+            conn.disconnect();
+            throw new java.io.IOException("File too large");
+        }
         try (InputStream in = conn.getInputStream();
              FileOutputStream fos = new FileOutputStream(dest)) {
             byte[] buf = new byte[32768];
@@ -258,12 +287,38 @@ public class DownloadSaveService extends Service {
             while ((n = in.read(buf)) != -1) {
                 fos.write(buf, 0, n);
                 downloaded += n;
+                if (downloaded > MAX_DOWNLOAD_BYTES) throw new java.io.IOException("File too large");
                 if (cb != null) cb.onProgress(downloaded, total);
             }
         } finally {
             conn.disconnect();
         }
         return contentType;
+    }
+
+    /**
+     * Opens {@code url}, following up to 5 redirects manually so that every hop is checked
+     * against the CDN allowlist. Returns a connection with a 200 response.
+     */
+    private static HttpURLConnection openValidatedConnection(String url) throws Exception {
+        String current = url;
+        for (int hop = 0; hop < 5; hop++) {
+            if (!DownloadRequestValidator.isAllowedMediaUrl(current)) {
+                throw new java.io.IOException("Redirect left the Instagram CDN");
+            }
+            HttpURLConnection conn = (HttpURLConnection) new URL(current).openConnection();
+            conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+            conn.setReadTimeout(READ_TIMEOUT_MS);
+            conn.setInstanceFollowRedirects(false);
+            conn.setRequestProperty("User-Agent", UA);
+            int code = conn.getResponseCode();
+            if (code == HttpURLConnection.HTTP_OK) return conn;
+            String location = conn.getHeaderField("Location");
+            conn.disconnect();
+            if (code / 100 != 3 || location == null) throw new java.io.IOException("HTTP " + code);
+            current = new URL(new URL(current), location).toString();
+        }
+        throw new java.io.IOException("Too many redirects");
     }
 
     private static void mergeVideoAudio(String vp, String ap, String op) throws Exception {
@@ -361,11 +416,8 @@ public class DownloadSaveService extends Service {
     }
 
     /**
-     * Posts a non-ongoing completion/error notification that persists after the service stops.
-     * Uses {@code DONE_NOTIF_BASE + startId} so concurrent downloads don't collide.
-     */
-    /**
-     * Posts a persistent completion notification.
+     * Posts a persistent completion notification. Uses {@code DONE_NOTIF_BASE + startId} so
+     * concurrent downloads don't collide.
      * If {@code fileUri} is non-null, tapping the notification opens the saved file
      * in the device's default viewer (gallery, video player, etc.).
      */
@@ -418,6 +470,14 @@ public class DownloadSaveService extends Service {
             ch.setSound(null, null);
             nm.createNotificationChannel(ch);
         }
+    }
+
+    /** Android 15+: dataSync services get a cumulative time limit; stop cleanly when it hits. */
+    @Override
+    public void onTimeout(int startId, int fgsType) {
+        ModuleLog.line("(IE|DL) Foreground service timeout reached; stopping");
+        stopForeground(STOP_FOREGROUND_REMOVE);
+        stopSelf();
     }
 
     @Override public IBinder onBind(Intent intent) { return null; }

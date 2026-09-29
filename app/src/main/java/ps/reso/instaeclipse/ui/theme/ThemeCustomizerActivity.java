@@ -26,9 +26,9 @@ import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.materialswitch.MaterialSwitch;
 
-import java.io.File;
 import java.util.List;
 
+import ps.reso.instaeclipse.utils.core.CommonUtils;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.mods.ui.theme.IgThemePalette;
 import ps.reso.instaeclipse.mods.ui.theme.ThemePreset;
@@ -180,31 +180,23 @@ public class ThemeCustomizerActivity extends AppCompatActivity implements Advanc
         editor.putInt(KEY_PRESET_ID, presetId);
         editor.putString(KEY_PALETTE_JSON, paletteJson);
         editor.commit();
-        makeCacheWorldReadable();
 
         Intent enabledIntent = new Intent("ps.reso.instaeclipse.ACTION_UPDATE_PREF");
         enabledIntent.putExtra("key", KEY_ENABLED);
         enabledIntent.putExtra("value", enabled);
-        sendBroadcast(enabledIntent);
+        CommonUtils.broadcastToInstagram(this, enabledIntent);
 
         Intent presetIntent = new Intent("ps.reso.instaeclipse.ACTION_UPDATE_PREF_INT");
         presetIntent.putExtra("key", KEY_PRESET_ID);
         presetIntent.putExtra("value", presetId);
-        sendBroadcast(presetIntent);
+        CommonUtils.broadcastToInstagram(this, presetIntent);
 
         Intent paletteIntent = new Intent("ps.reso.instaeclipse.ACTION_UPDATE_PREF_STRING");
         paletteIntent.putExtra("key", KEY_PALETTE_JSON);
         paletteIntent.putExtra("value", paletteJson);
-        sendBroadcast(paletteIntent);
+        CommonUtils.broadcastToInstagram(this, paletteIntent);
 
         Toast.makeText(this, R.string.theme_saved, Toast.LENGTH_SHORT).show();
-    }
-
-    private void makeCacheWorldReadable() {
-        try {
-            File file = new File(getApplicationInfo().dataDir + "/shared_prefs/" + CACHE_NAME + ".xml");
-            file.setReadable(true, false);
-        } catch (Throwable ignored) {}
     }
 
     @Override
@@ -268,7 +260,7 @@ public class ThemeCustomizerActivity extends AppCompatActivity implements Advanc
             bindPreview(holder.preview, preset.palette.previewColors());
             boolean selected = !customMode && preset.id == selectedPresetId;
             int stroke = selected
-                    ? MaterialColors.getColor(holder.card, com.google.android.material.R.attr.colorPrimary)
+                    ? MaterialColors.getColor(holder.card, androidx.appcompat.R.attr.colorPrimary)
                     : MaterialColors.getColor(holder.card, com.google.android.material.R.attr.colorOutline);
             holder.card.setStrokeColor(stroke);
             holder.card.setStrokeWidth(selected ? dp(2) : dp(1));

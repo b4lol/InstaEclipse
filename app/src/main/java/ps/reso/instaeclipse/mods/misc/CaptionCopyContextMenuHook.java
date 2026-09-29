@@ -1,6 +1,7 @@
 package ps.reso.instaeclipse.mods.misc;
 
-import android.app.AndroidAppHelper;
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
+import ps.reso.instaeclipse.hook.HostApp;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.ClipData;
@@ -25,7 +26,6 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
@@ -43,9 +43,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
@@ -106,7 +106,7 @@ public class CaptionCopyContextMenuHook {
 
     // ── Entry point ──────────────────────────────────────────────────────────
 
-    public void install(DexKitBridge bridge, ClassLoader classLoader) {
+    public void install(LazyDexKit bridge, ClassLoader classLoader) {
         // Track current Activity for showing the copy dialog
         try {
             installActivityTracker();
@@ -127,12 +127,12 @@ public class CaptionCopyContextMenuHook {
     }
 
     private static void installActivityTracker() {
-        XposedHelpers.findAndHookMethod(Activity.class, "onResume", new XC_MethodHook() {
+        HookHelpers.findAndHookMethod(Activity.class, "onResume", new MethodHook() {
             @Override protected void afterHookedMethod(MethodHookParam p) {
                 currentActivity = (Activity) p.thisObject;
             }
         });
-        XposedHelpers.findAndHookMethod(Activity.class, "onDestroy", new XC_MethodHook() {
+        HookHelpers.findAndHookMethod(Activity.class, "onDestroy", new MethodHook() {
             @Override protected void afterHookedMethod(MethodHookParam p) {
                 if (currentActivity == p.thisObject) currentActivity = null;
             }
@@ -164,7 +164,7 @@ public class CaptionCopyContextMenuHook {
 
     // ── Step 2: caption getter (LiveTreeMediaDict -> caption object) ────────
 
-    private static void resolveCaptionGetter(DexKitBridge bridge, ClassLoader classLoader) {
+    private static void resolveCaptionGetter(LazyDexKit bridge, ClassLoader classLoader) {
         if (DexKitCache.isCacheValid()) {
             Method cached = DexKitCache.loadMethod("CaptionGetter", classLoader);
             if (cached != null) {
@@ -282,7 +282,7 @@ public class CaptionCopyContextMenuHook {
     // (same discovery strategy as PostDownloadContextMenuHook — kept independent so this
     // feature works regardless of whether the download feature is enabled)
 
-    private static void findCreatorClassAndAddButtonMethod(DexKitBridge bridge,
+    private static void findCreatorClassAndAddButtonMethod(LazyDexKit bridge,
                                                              ClassLoader classLoader) {
         if (DexKitCache.isCacheValid()) {
             Method cached = DexKitCache.loadMethod("CaptionCopy_addButton", classLoader);
@@ -413,7 +413,7 @@ public class CaptionCopyContextMenuHook {
             return;
         }
 
-        XposedBridge.hookMethod(addButtonMethod, new XC_MethodHook() {
+        HookBridge.hookMethod(addButtonMethod, new MethodHook() {
 
             // Remove Meta AI (446+): the reel/post ⋮ menu "Ask Meta AI about this" row is added
             // through this same addButton choke point, carrying a Meta-AI MediaOption$Option at
@@ -449,7 +449,7 @@ public class CaptionCopyContextMenuHook {
                 System.arraycopy(param.args, 0, callArgs, 0, callArgs.length);
                 callArgs[idxEnum]   = enumNormalValue;
                 callArgs[idxOption] = copyCaptionOptionValue;
-                callArgs[idxText]   = I18n.t(AndroidAppHelper.currentApplication(), R.string.ig_caption_copy_menu_item);
+                callArgs[idxText]   = I18n.t(HostApp.get(), R.string.ig_caption_copy_menu_item);
 
                 sAddingCaptionRow.set(true);
                 try {
@@ -468,8 +468,8 @@ public class CaptionCopyContextMenuHook {
 
     // ── Hook B: click handler ─────────────────────────────────────────────────
 
-    private static void installClickHandlerHook(DexKitBridge bridge, ClassLoader classLoader) {
-        XC_MethodHook clickHook = new XC_MethodHook() {
+    private static void installClickHandlerHook(LazyDexKit bridge, ClassLoader classLoader) {
+        MethodHook clickHook = new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.enableCaptionCopy) return;
@@ -480,7 +480,7 @@ public class CaptionCopyContextMenuHook {
         if (DexKitCache.isCacheValid()) {
             List<Method> cached = DexKitCache.loadMethods("CaptionCopy_click", classLoader);
             if (cached != null && !cached.isEmpty()) {
-                for (Method m : cached) XposedBridge.hookMethod(m, clickHook);
+                for (Method m : cached) HookBridge.hookMethod(m, clickHook);
                 return;
             }
         }
@@ -509,7 +509,7 @@ public class CaptionCopyContextMenuHook {
                 try {
                     if (hasPublicCandidate && Modifier.isPrivate(m.getModifiers())) continue;
                     m.setAccessible(true);
-                    XposedBridge.hookMethod(m, clickHook);
+                    HookBridge.hookMethod(m, clickHook);
                     hooked.add(m);
                 } catch (Throwable t) {
                     ModuleLog.line("(IE|Caption) ❌ Failed to hook click candidate: " + t);
@@ -531,8 +531,8 @@ public class CaptionCopyContextMenuHook {
     // Same "SimplifiedMediaOverflowBottomSheet" allowlist patched for Download — also needs
     // to include our carrier option so it isn't filtered out on newer builds.
 
-    private static void installAllowlistPatchHook(DexKitBridge bridge, ClassLoader classLoader) {
-        XC_MethodHook allowlistHook = new XC_MethodHook() {
+    private static void installAllowlistPatchHook(LazyDexKit bridge, ClassLoader classLoader) {
+        MethodHook allowlistHook = new MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
                 if (copyCaptionOptionValue == null) return;
@@ -552,7 +552,7 @@ public class CaptionCopyContextMenuHook {
         if (DexKitCache.isCacheValid()) {
             Method cached = DexKitCache.loadMethod("PostDownload_allowlist", classLoader);
             if (cached != null) {
-                XposedBridge.hookMethod(cached, allowlistHook);
+                HookBridge.hookMethod(cached, allowlistHook);
                 return;
             }
         }
@@ -574,7 +574,7 @@ public class CaptionCopyContextMenuHook {
 
             Method target = results.get(0).getMethodInstance(classLoader);
             target.setAccessible(true);
-            XposedBridge.hookMethod(target, allowlistHook);
+            HookBridge.hookMethod(target, allowlistHook);
 
         } catch (Throwable t) {
             ModuleLog.line("(IE|Caption) ❌ installAllowlistPatchHook: " + t);
@@ -588,10 +588,10 @@ public class CaptionCopyContextMenuHook {
     // matching on PLAYBACK_CONTROLS + UNSAVE). Append our carrier there too so "Copy
     // Caption" also shows up on reels — same shared row renderer, so the click-handler
     // hook above already covers whatever dispatches the click.
-    private static void installReelOptionsListPatch(DexKitBridge bridge, ClassLoader classLoader) {
+    private static void installReelOptionsListPatch(LazyDexKit bridge, ClassLoader classLoader) {
         if (copyCaptionOptionValue == null) return;
 
-        XC_MethodHook hook = new XC_MethodHook() {
+        MethodHook hook = new MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.enableCaptionCopy) return;
@@ -611,7 +611,7 @@ public class CaptionCopyContextMenuHook {
         if (DexKitCache.isCacheValid()) {
             Method cached = DexKitCache.loadMethod("ReelOptionsListBuilder", classLoader);
             if (cached != null) {
-                XposedBridge.hookMethod(cached, hook);
+                HookBridge.hookMethod(cached, hook);
                 return;
             }
         }
@@ -628,7 +628,7 @@ public class CaptionCopyContextMenuHook {
 
             Method target = methods.get(0).getMethodInstance(classLoader);
             target.setAccessible(true);
-            XposedBridge.hookMethod(target, hook);
+            HookBridge.hookMethod(target, hook);
             DexKitCache.saveMethod("ReelOptionsListBuilder", target);
 
         } catch (Throwable t) {
@@ -658,16 +658,16 @@ public class CaptionCopyContextMenuHook {
     // enum singleton (extracted by scanning its fields by type), so each is a no-op for
     // every other menu row, native or otherwise — misidentifying a target here means the
     // fix silently doesn't apply, not that behavior changes for anything else.
-    private static void installReelLabelOverrideHook(DexKitBridge bridge, ClassLoader classLoader) {
+    private static void installReelLabelOverrideHook(LazyDexKit bridge, ClassLoader classLoader) {
         if (mediaOptionEnumClass == null || copyCaptionOptionValue == null) return;
 
-        XC_MethodHook labelHook = makeBuilderLabelHook();
+        MethodHook labelHook = makeBuilderLabelHook();
 
         if (DexKitCache.isCacheValid()) {
             List<Method> cached = DexKitCache.loadMethods("ReelRowBuilders", classLoader);
             if (cached != null && !cached.isEmpty()) {
                 for (Method m : cached) {
-                    try { m.setAccessible(true); XposedBridge.hookMethod(m, labelHook); }
+                    try { m.setAccessible(true); HookBridge.hookMethod(m, labelHook); }
                     catch (Throwable ignored) {}
                 }
                 ModuleLog.line("(IE|Caption) ✅ reel label override (cached), "
@@ -723,7 +723,7 @@ public class CaptionCopyContextMenuHook {
                     if (!seen.add(bm)) continue;
                     try {
                         bm.setAccessible(true);
-                        XposedBridge.hookMethod(bm, labelHook);
+                        HookBridge.hookMethod(bm, labelHook);
                         hooked.add(bm);
                         ModuleLog.line("(IE|Caption) ✅ reel label override on "
                                 + bm.getDeclaringClass().getName() + "." + bm.getName());
@@ -777,8 +777,8 @@ public class CaptionCopyContextMenuHook {
     // Fires for every reel-menu row builder; no-op unless one of the args is the click-listener
     // wrapping our exact carrier enum. Then it replaces the row title (the first String arg after
     // the last OnClickListener arg — index 3 for both LX/0458.A00 and .A01 on 447) with "Copy Caption".
-    private static XC_MethodHook makeBuilderLabelHook() {
-        return new XC_MethodHook() {
+    private static MethodHook makeBuilderLabelHook() {
+        return new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 try {
@@ -816,7 +816,7 @@ public class CaptionCopyContextMenuHook {
 
     // ── Click dispatch ────────────────────────────────────────────────────────
 
-    private static void onOptionClicked(XC_MethodHook.MethodHookParam param) {
+    private static void onOptionClicked(MethodHook.MethodHookParam param) {
         try {
             if (Boolean.TRUE.equals(sAddingCaptionRow.get())) return;
 

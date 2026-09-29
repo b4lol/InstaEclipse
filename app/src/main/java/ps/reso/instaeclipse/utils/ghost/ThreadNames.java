@@ -1,12 +1,12 @@
 package ps.reso.instaeclipse.utils.ghost;
 
-import android.app.AndroidAppHelper;
+import ps.reso.instaeclipse.utils.core.AtomicFiles;
+import ps.reso.instaeclipse.hook.HostApp;
 import android.content.Context;
 
 import org.json.JSONObject;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,17 +26,20 @@ public class ThreadNames {
     private static boolean loaded = false;
 
     private static File file() {
-        Context ctx = AndroidAppHelper.currentApplication();
+        Context ctx = HostApp.get();
         if (ctx == null) return null;
         return new File(ctx.getFilesDir(), FILE_NAME);
     }
 
     private static synchronized void ensureLoaded() {
         if (loaded) return;
+        File f = file();
+        // No Context yet: stay unloaded so a later call loads the file. (Marking it loaded here
+        // made the next persist() overwrite the user's saved file with an empty store.)
+        if (f == null) return;
         loaded = true;
         try {
-            File f = file();
-            if (f == null || !f.exists()) return;
+            if (!f.exists()) return;
             byte[] b = new byte[(int) f.length()];
             try (java.io.FileInputStream in = new java.io.FileInputStream(f)) {
                 int off = 0, n;
@@ -58,9 +61,7 @@ public class ThreadNames {
             if (f == null) return;
             JSONObject o = new JSONObject();
             for (Map.Entry<String, String> e : cache.entrySet()) o.put(e.getKey(), e.getValue());
-            try (FileOutputStream out = new FileOutputStream(f)) {
-                out.write(o.toString().getBytes(StandardCharsets.UTF_8));
-            }
+            AtomicFiles.writeAsync(f, o.toString());
         } catch (Throwable t) {
             ModuleLog.line("(IE|ThreadNames) persist failed: " + t.getMessage());
         }

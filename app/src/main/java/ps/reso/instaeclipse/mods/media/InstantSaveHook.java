@@ -1,15 +1,15 @@
 package ps.reso.instaeclipse.mods.media;
 
-import android.app.AndroidAppHelper;
+import ps.reso.instaeclipse.hook.HostApp;
 import android.content.Context;
 import android.widget.Toast;
 
 import java.lang.reflect.Proxy;
 import java.util.List;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
@@ -51,9 +51,9 @@ public class InstantSaveHook {
     /** Hook the current-card coroutine ctor and cache arg[6]'s Media (field A01). */
     private void cacheCurrentInstant(ClassLoader cl) {
         try {
-            Class<?> lambda = XposedHelpers.findClass(VIEWER_LAMBDA, cl);
+            Class<?> lambda = HookHelpers.findClass(VIEWER_LAMBDA, cl);
             for (java.lang.reflect.Constructor<?> c : lambda.getDeclaredConstructors()) {
-                XposedBridge.hookMethod(c, new XC_MethodHook() {
+                HookBridge.hookMethod(c, new MethodHook() {
                     @Override protected void afterHookedMethod(MethodHookParam p) {
                         try {
                             Object media = findInstantMedia(p.args);
@@ -103,13 +103,13 @@ public class InstantSaveHook {
      */
     private void wrapLongPress(ClassLoader cl) {
         try {
-            final Class<?> function1 = XposedHelpers.findClass("kotlin.jvm.functions.Function1", cl);
-            Class<?> handler = XposedHelpers.findClass(LONGPRESS_LAMBDA, cl);
+            final Class<?> function1 = HookHelpers.findClass("kotlin.jvm.functions.Function1", cl);
+            Class<?> handler = HookHelpers.findClass(LONGPRESS_LAMBDA, cl);
             for (java.lang.reflect.Constructor<?> c : handler.getDeclaredConstructors()) {
-                XposedBridge.hookMethod(c, new XC_MethodHook() {
+                HookBridge.hookMethod(c, new MethodHook() {
                     @Override protected void afterHookedMethod(MethodHookParam p) {
                         try {
-                            final Object orig = XposedHelpers.getObjectField(p.thisObject, "A0A");
+                            final Object orig = HookHelpers.getObjectField(p.thisObject, "A0A");
                             if (orig == null || !function1.isInstance(orig)) return;
                             if (orig.getClass().getName().startsWith("$Proxy")) return; // already wrapped
                             Object wrapper = Proxy.newProxyInstance(cl, new Class[]{function1}, (proxy, method, a) -> {
@@ -119,7 +119,7 @@ public class InstantSaveHook {
                                 }
                                 return orig != null ? method.invoke(orig, a) : null;
                             });
-                            XposedHelpers.setObjectField(p.thisObject, "A0A", wrapper);
+                            HookHelpers.setObjectField(p.thisObject, "A0A", wrapper);
                         } catch (Throwable ignored) {}
                     }
                 });
@@ -134,7 +134,7 @@ public class InstantSaveHook {
     /** Saves the cached current Instant's media via the module's downloader. */
     private static void saveCurrent() {
         final Object media = currentMedia;
-        final Context ctx = AndroidAppHelper.currentApplication();
+        final Context ctx = HostApp.get();
         if (ctx == null) return;
         if (media == null) {
             FeedVideoDownloadHook.mainHandler.post(() ->

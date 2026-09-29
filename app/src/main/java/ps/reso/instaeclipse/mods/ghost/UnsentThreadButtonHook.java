@@ -16,8 +16,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.ghost.UnsentLog;
 import ps.reso.instaeclipse.utils.log.ModuleLog;
@@ -38,7 +38,7 @@ public class UnsentThreadButtonHook {
     private static int threadHeaderId, actionBarEndId, tagKeyId, backButtonId, leftContainerId, threadTitleId, threadSubtitleId;
 
     public void install(ClassLoader classLoader) {
-        XC_MethodHook resume = new XC_MethodHook() {
+        MethodHook resume = new MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.keepUnsentMessages) return;
@@ -49,7 +49,7 @@ public class UnsentThreadButtonHook {
         for (String act : new String[]{"com.instagram.modal.ModalActivity",
                 "com.instagram.mainactivity.InstagramMainActivity"}) {
             try {
-                XposedHelpers.findAndHookMethod(act, classLoader, "onResume", resume);
+                HookHelpers.findAndHookMethod(act, classLoader, "onResume", resume);
             } catch (Throwable t) {
                 ModuleLog.line("(IE|UnsentBtn) ⚠️ hook " + act + ": " + t.getMessage());
             }

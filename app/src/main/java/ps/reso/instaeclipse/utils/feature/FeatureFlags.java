@@ -1,116 +1,120 @@
 package ps.reso.instaeclipse.utils.feature;
 
+/**
+ * Feature switches. Written on the main thread (sync receiver, in-app menu) and read from hooks
+ * on any thread (network, decoding, UI), so every field is volatile to make changes visible.
+ */
 public class FeatureFlags {
 
     // Dev Options
-    public static boolean isDevEnabled = false;
+    public static volatile boolean isDevEnabled = false;
 
     // Ghost Mode
-    public static boolean isGhostModeEnabled = false;
-    public static boolean isGhostSeen = false;
-    public static boolean isGhostTyping = false;
-    public static boolean isGhostScreenshot = false;
-    public static boolean isGhostViewOnce = false;
-    public static boolean isGhostStory = false;
-    public static boolean isGhostLive = false;
-    public static boolean allowScreenshots = false;
-    public static boolean keepEphemeralMessages = false;
-    public static boolean permanentViewMode = false;
-    public static boolean keepUnsentMessages = false;
+    public static volatile boolean isGhostModeEnabled = false;
+    public static volatile boolean isGhostSeen = false;
+    public static volatile boolean isGhostTyping = false;
+    public static volatile boolean isGhostScreenshot = false;
+    public static volatile boolean isGhostViewOnce = false;
+    public static volatile boolean isGhostStory = false;
+    public static volatile boolean isGhostLive = false;
+    public static volatile boolean allowScreenshots = false;
+    public static volatile boolean keepEphemeralMessages = false;
+    public static volatile boolean permanentViewMode = false;
+    public static volatile boolean keepUnsentMessages = false;
 
     // Auto-clear cache
-    public static boolean autoClearCache = false;
-    public static int autoClearCacheSizeMb = 100;
+    public static volatile boolean autoClearCache = false;
+    public static volatile int autoClearCacheSizeMb = 100;
 
     // Remove Meta AI (#179)
-    public static boolean removeMetaAI = false;
+    public static volatile boolean removeMetaAI = false;
 
     // Lock DMs (#182) — passcode stored as salted SHA-256 hash (never plaintext)
-    public static boolean lockDirectMessages = false;
-    public static String lockDirectPasscode = "";
-    public static String lockDirectSalt = ""; // per-install random salt; "" = legacy unsalted
-    public static boolean lockDirectAlways = false; // re-lock whenever leaving the inbox (not just on app close)
-    public static boolean lockWholeApp = false; // lock the ENTIRE app on launch/return (same passcode as Lock DMs)
-    public static boolean lockUseFingerprint = true; // offer biometric unlock when the device has one enrolled
-    public static boolean hideSpecificChats = false; // hide chosen DM threads from the inbox (per-thread)
+    public static volatile boolean lockDirectMessages = false;
+    public static volatile String lockDirectPasscode = "";
+    public static volatile String lockDirectSalt = ""; // per-install random salt; "" = legacy unsalted
+    public static volatile boolean lockDirectAlways = false; // re-lock whenever leaving the inbox (not just on app close)
+    public static volatile boolean lockWholeApp = false; // lock the ENTIRE app on launch/return (same passcode as Lock DMs)
+    public static volatile boolean lockUseFingerprint = true; // offer biometric unlock when the device has one enrolled
+    public static volatile boolean hideSpecificChats = false; // hide chosen DM threads from the inbox (per-thread)
 
     // Which ghost mode features the quick toggle will control
-    public static boolean quickToggleSeen = false;
-    public static boolean quickToggleTyping = false;
-    public static boolean quickToggleScreenshot = false;
-    public static boolean quickToggleViewOnce = false;
-    public static boolean quickToggleStory = false;
-    public static boolean quickToggleLive = false;
-    public static boolean quickToggleEphemeral = false;
-    public static boolean quickTogglePermanentView = false;
-    public static boolean quickToggleAllowScreenshots = false;
+    public static volatile boolean quickToggleSeen = false;
+    public static volatile boolean quickToggleTyping = false;
+    public static volatile boolean quickToggleScreenshot = false;
+    public static volatile boolean quickToggleViewOnce = false;
+    public static volatile boolean quickToggleStory = false;
+    public static volatile boolean quickToggleLive = false;
+    public static volatile boolean quickToggleEphemeral = false;
+    public static volatile boolean quickTogglePermanentView = false;
+    public static volatile boolean quickToggleAllowScreenshots = false;
 
 
     // Distraction Free
-    public static boolean isExtremeMode = false; // Extreme Mode
-    public static boolean isDistractionFree = false;
-    public static boolean disableStories = false;
-    public static boolean disableFeed = false;
-    public static boolean disableReels = false;
-    public static boolean disableReelsExceptDM = false;
-    public static boolean disableExplore = false;
-    public static boolean disableComments = false;
+    public static volatile boolean isExtremeMode = false; // Extreme Mode
+    public static volatile boolean isDistractionFree = false;
+    public static volatile boolean disableStories = false;
+    public static volatile boolean disableFeed = false;
+    public static volatile boolean disableReels = false;
+    public static volatile boolean disableReelsExceptDM = false;
+    public static volatile boolean disableExplore = false;
+    public static volatile boolean disableComments = false;
 
     // Ads and Analytics
-    public static boolean isAdBlockEnabled = false;
-    public static boolean isAnalyticsBlocked = false;
-    public static boolean disableTrackingLinks = false;
+    public static volatile boolean isAdBlockEnabled = false;
+    public static volatile boolean isAnalyticsBlocked = false;
+    public static volatile boolean disableTrackingLinks = false;
 
     // Misc Options
-    public static boolean isMiscEnabled = false;
-    public static boolean disableStoryFlipping = false;
-    public static boolean disableVideoAutoPlay = false;
-    public static boolean spoofLastSeen = false;
-    public static boolean showFollowerToast = false;
-    public static boolean showFeatureToasts = false;
-    public static boolean disableRepost = false;
+    public static volatile boolean isMiscEnabled = false;
+    public static volatile boolean disableStoryFlipping = false;
+    public static volatile boolean disableVideoAutoPlay = false;
+    public static volatile boolean spoofLastSeen = false;
+    public static volatile boolean showFollowerToast = false;
+    public static volatile boolean showFeatureToasts = false;
+    public static volatile boolean disableRepost = false;
 
 
-    public static boolean enableStoryMentions = false;
-    public static boolean disableDiscoverPeople = false;
-    public static boolean removeBuildExpiredPopup = false;
-    public static boolean enableCopyComment = false;
-    public static boolean enableCaptionCopy = false;
-    public static boolean disableDoubleTapLike = false;
-    public static boolean enablePhotoZoom = false;
+    public static volatile boolean enableStoryMentions = false;
+    public static volatile boolean disableDiscoverPeople = false;
+    public static volatile boolean removeBuildExpiredPopup = false;
+    public static volatile boolean enableCopyComment = false;
+    public static volatile boolean enableCaptionCopy = false;
+    public static volatile boolean disableDoubleTapLike = false;
+    public static volatile boolean enablePhotoZoom = false;
 
     // Location Spoof
-    public static boolean spoofLocation = false;
-    public static double spoofLat = 0.0;
-    public static double spoofLng = 0.0;
+    public static volatile boolean spoofLocation = false;
+    public static volatile double spoofLat = 0.0;
+    public static volatile double spoofLng = 0.0;
 
     // Video Quality (0 = auto/off, else desired height in px, or Integer.MAX_VALUE for max available)
-    public static int forceReelQuality = 0;
+    public static volatile int forceReelQuality = 0;
 
     // Custom Theme (themePresetId: 0 = custom palette from themePaletteJson, else a built-in preset id)
-    public static boolean customThemeEnabled = false;
-    public static int themePresetId = 1;
-    public static String themePaletteJson = "";
+    public static volatile boolean customThemeEnabled = false;
+    public static volatile int themePresetId = 1;
+    public static volatile String themePaletteJson = "";
 
     // Clean Feed
-    public static boolean hideSuggestionsInFeed = false;
-    public static boolean hideThreadsSuggestions = false;
+    public static volatile boolean hideSuggestionsInFeed = false;
+    public static volatile boolean hideThreadsSuggestions = false;
 
     // Downloader
-    public static boolean enablePostDownload = false;
-    public static boolean enableStoryDownload = false;
-    public static boolean enableReelDownload = false;
-    public static boolean enableProfileDownload = false;
-    public static boolean downloaderUsernameFolder = false;
-    public static boolean downloaderAddTimestamp = false;
-    public static boolean copyMediaLink = false;      // #117 — inject "Copy Media Link" (direct CDN url) into the post ⋮ menu
-    public static boolean saveInstants = false;        // #184 — long-press a received Instant (quicksnap) to save it
-    public static boolean uploadInstants = false;      // #199 — send an Instant from gallery (bitmap-swap into quicksnap send)
-    public static boolean cacheStories = false;        // cache viewed stories locally for 24h (survive expiry/deletion)
-    public static boolean customFontEnabled = false;   // replace IG's UI text font with a user .ttf/.otf
-    public static String  customFontPath = "";         // path to the user-picked font in the module's filesDir
-    public static boolean customEmojiEnabled = false;  // replace IG's emoji font (needs an EmojiCompat-format .ttf)
-    public static String  customEmojiPath = "";        // path to the user-picked EmojiCompat emoji font
-    public static String  downloaderCustomPath = "";   // human-readable display path
-    public static String  downloaderCustomUri  = "";   // SAF tree URI string for actual writes
+    public static volatile boolean enablePostDownload = false;
+    public static volatile boolean enableStoryDownload = false;
+    public static volatile boolean enableReelDownload = false;
+    public static volatile boolean enableProfileDownload = false;
+    public static volatile boolean downloaderUsernameFolder = false;
+    public static volatile boolean downloaderAddTimestamp = false;
+    public static volatile boolean copyMediaLink = false;      // #117 — inject "Copy Media Link" (direct CDN url) into the post ⋮ menu
+    public static volatile boolean saveInstants = false;        // #184 — long-press a received Instant (quicksnap) to save it
+    public static volatile boolean uploadInstants = false;      // #199 — send an Instant from gallery (bitmap-swap into quicksnap send)
+    public static volatile boolean cacheStories = false;        // cache viewed stories locally for 24h (survive expiry/deletion)
+    public static volatile boolean customFontEnabled = false;   // replace IG's UI text font with a user .ttf/.otf
+    public static volatile String  customFontPath = "";         // path to the user-picked font in the module's filesDir
+    public static volatile boolean customEmojiEnabled = false;  // replace IG's emoji font (needs an EmojiCompat-format .ttf)
+    public static volatile String  customEmojiPath = "";        // path to the user-picked EmojiCompat emoji font
+    public static volatile String  downloaderCustomPath = "";   // human-readable display path
+    public static volatile String  downloaderCustomUri  = "";   // SAF tree URI string for actual writes
 }

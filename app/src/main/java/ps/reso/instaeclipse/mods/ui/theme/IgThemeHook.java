@@ -14,8 +14,8 @@ import android.view.WindowInsetsController;
 
 import java.lang.reflect.Field;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.mods.ui.UIHookManager;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
@@ -53,8 +53,13 @@ public class IgThemeHook {
     }
 
     private void hookResolveAttribute(final ClassLoader cl) {
-        XposedHelpers.findAndHookMethod("android.content.res.Resources$Theme", cl, "resolveAttribute",
-                int.class, TypedValue.class, boolean.class, new XC_MethodHook() {
+        HookHelpers.findAndHookMethod("android.content.res.Resources$Theme", cl, "resolveAttribute",
+                int.class, TypedValue.class, boolean.class, new MethodHook() {
+                    @Override
+                    protected boolean isActive() {
+                        return FeatureFlags.customThemeEnabled;
+                    }
+
                     @Override
                     protected void afterHookedMethod(MethodHookParam param) {
                         if (IgColorRemapEngine.isBypassing() || !FeatureFlags.customThemeEnabled) return;
@@ -63,7 +68,7 @@ public class IgThemeHook {
                         if (out == null) return;
                         if (!IgThemeEngine.isInitialized()) {
                             try {
-                                Resources res = (Resources) XposedHelpers.getObjectField(param.thisObject, "mResources");
+                                Resources res = (Resources) HookHelpers.getObjectField(param.thisObject, "mResources");
                                 if (res != null) IgThemeEngine.ensureInitialized(res, cl);
                             } catch (Throwable ignored) {}
                         }
@@ -85,7 +90,12 @@ public class IgThemeHook {
     }
 
     private void hookGetColor(final ClassLoader cl) {
-        XC_MethodHook hook = new XC_MethodHook() {
+        MethodHook hook = new MethodHook() {
+            @Override
+            protected boolean isActive() {
+                return FeatureFlags.customThemeEnabled;
+            }
+
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.customThemeEnabled || IgColorRemapEngine.isBypassing()) return;
@@ -121,15 +131,20 @@ public class IgThemeHook {
             }
         };
         try {
-            XposedHelpers.findAndHookMethod(Resources.class, "getColor", int.class, Resources.Theme.class, hook);
+            HookHelpers.findAndHookMethod(Resources.class, "getColor", int.class, Resources.Theme.class, hook);
         } catch (Throwable ignored) {}
         try {
-            XposedHelpers.findAndHookMethod(Resources.class, "getColor", int.class, hook);
+            HookHelpers.findAndHookMethod(Resources.class, "getColor", int.class, hook);
         } catch (Throwable ignored) {}
     }
 
     private void hookContextGetColor() {
-        XC_MethodHook hook = new XC_MethodHook() {
+        MethodHook hook = new MethodHook() {
+            @Override
+            protected boolean isActive() {
+                return FeatureFlags.customThemeEnabled;
+            }
+
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.customThemeEnabled || IgColorRemapEngine.isBypassing()) return;
@@ -165,12 +180,17 @@ public class IgThemeHook {
             }
         };
         try {
-            XposedHelpers.findAndHookMethod(Context.class, "getColor", int.class, hook);
+            HookHelpers.findAndHookMethod(Context.class, "getColor", int.class, hook);
         } catch (Throwable ignored) {}
     }
 
     private void hookTypedArrayGetColor(final ClassLoader cl) {
-        XposedHelpers.findAndHookMethod(TypedArray.class, "getColor", int.class, int.class, new XC_MethodHook() {
+        HookHelpers.findAndHookMethod(TypedArray.class, "getColor", int.class, int.class, new MethodHook() {
+            @Override
+            protected boolean isActive() {
+                return FeatureFlags.customThemeEnabled;
+            }
+
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
                 if (IgColorRemapEngine.isBypassing() || !FeatureFlags.customThemeEnabled) return;
@@ -202,7 +222,7 @@ public class IgThemeHook {
     }
 
     private void hookActivityLifecycle() {
-        XposedHelpers.findAndHookMethod(Activity.class, "onResume", new XC_MethodHook() {
+        HookHelpers.findAndHookMethod(Activity.class, "onResume", new MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
                 if (!IgThemeEngine.isActive()) return;
@@ -212,7 +232,7 @@ public class IgThemeHook {
                 applyWindowColors(activity);
             }
         });
-        XposedHelpers.findAndHookMethod(Activity.class, "onCreate", Bundle.class, new XC_MethodHook() {
+        HookHelpers.findAndHookMethod(Activity.class, "onCreate", Bundle.class, new MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
                 if (!IgThemeEngine.isActive()) return;
@@ -225,13 +245,13 @@ public class IgThemeHook {
     }
 
     private void hookPhoneWindowColors(ClassLoader cl) {
-        XC_MethodHook statusHook = new XC_MethodHook() {
+        MethodHook statusHook = new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (IgThemeEngine.isActive()) param.args[0] = IgThemeEngine.getActivePalette().statusBar;
             }
         };
-        XC_MethodHook navHook = new XC_MethodHook() {
+        MethodHook navHook = new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (IgThemeEngine.isActive()) param.args[0] = IgThemeEngine.getActivePalette().navigation;
@@ -240,10 +260,10 @@ public class IgThemeHook {
         if (!tryHookPhoneWindow(cl, statusHook, navHook)) tryHookPhoneWindow(null, statusHook, navHook);
     }
 
-    private boolean tryHookPhoneWindow(ClassLoader cl, XC_MethodHook statusHook, XC_MethodHook navHook) {
+    private boolean tryHookPhoneWindow(ClassLoader cl, MethodHook statusHook, MethodHook navHook) {
         try {
-            XposedHelpers.findAndHookMethod("com.android.internal.policy.PhoneWindow", cl, "setStatusBarColor", int.class, statusHook);
-            XposedHelpers.findAndHookMethod("com.android.internal.policy.PhoneWindow", cl, "setNavigationBarColor", int.class, navHook);
+            HookHelpers.findAndHookMethod("com.android.internal.policy.PhoneWindow", cl, "setStatusBarColor", int.class, statusHook);
+            HookHelpers.findAndHookMethod("com.android.internal.policy.PhoneWindow", cl, "setNavigationBarColor", int.class, navHook);
             ModuleLog.line("(InstaEclipse | Theme): PhoneWindow color hooks installed");
             return true;
         } catch (Throwable ignored) {

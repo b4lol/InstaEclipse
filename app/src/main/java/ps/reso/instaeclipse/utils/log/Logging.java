@@ -7,11 +7,15 @@ import android.os.HandlerThread;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -22,6 +26,10 @@ import java.util.Locale;
  *
  * Consecutive identical lines are collapsed into a single "(×N)" entry to avoid the buffer
  * filling up with noise from a hook that logs the same thing on every call.
+ *
+ * Threading: {@link #LOCK} only guards the in-memory state and is never held during disk I/O,
+ * so callers on Instagram's UI thread never wait for the file. All file access happens on a
+ * single background thread, which owns the writer.
  */
 public final class Logging {
 
@@ -40,16 +48,22 @@ public final class Logging {
     private static final ThreadLocal<SimpleDateFormat> TS =
             ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US));
 
+    // In-memory state, guarded by LOCK.
     private static boolean initialized;
-    private static File logFile;
-    private static HandlerThread ioThread;
-    private static Handler ioHandler;
-    private static boolean dirtyFile;
     private static String lastBody;
     private static String lastBodyTime;
     private static int lastBodyRepeat = 1;
+    private static boolean rewritePending;
 
-    private static final Runnable REWRITE_RUNNABLE = Logging::rewriteFileRunnable;
+    // I/O state, only touched on the I/O thread.
+    private static File logFile;
+    private static BufferedWriter writer;
+    private static long fileBytes;
+
+    private static HandlerThread ioThread;
+    private static volatile Handler ioHandler;
+
+    private static final Runnable REWRITE_RUNNABLE = Logging::rewriteFile;
 
     private Logging() {}
 
@@ -58,124 +72,141 @@ public final class Logging {
     }
 
     public static void init(Context context, String filename) {
+        final File file = new File(context.getFilesDir(), filename);
         synchronized (LOCK) {
             if (initialized) return;
-            logFile = new File(context.getFilesDir(), filename);
-            ensureIoThread();
-            loadFromFileLocked();
             initialized = true;
+            ioThread = new HandlerThread("InstaEclipse-Logging-IO");
+            ioThread.start();
+            ioHandler = new Handler(ioThread.getLooper());
         }
+        // Load previous lines off the caller's thread (this runs during Instagram's
+        // Application.attach). Queued first, so it completes before any append is written.
+        ioHandler.post(() -> {
+            logFile = file;
+            loadFromFile();
+        });
     }
 
-    private static void ensureIoThread() {
-        if (ioThread != null) return;
-        ioThread = new HandlerThread("InstaEclipse-Logging-IO");
-        ioThread.start();
-        ioHandler = new Handler(ioThread.getLooper());
-    }
-
-    private static void loadFromFileLocked() {
-        if (logFile == null || !logFile.exists()) return;
+    private static void loadFromFile() {
+        if (!logFile.exists()) return;
+        List<String> loaded = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(new FileReader(logFile))) {
             String line;
             while ((line = br.readLine()) != null) {
-                trimLinesIfNeeded();
-                LINES.addLast(line);
+                loaded.add(line);
+                if (loaded.size() > MAX_LINES * 2) loaded.subList(0, MAX_LINES).clear();
             }
         } catch (Throwable ignored) {}
+        fileBytes = logFile.length();
+        synchronized (LOCK) {
+            // Lines appended while we were loading are newer: keep them after the old ones.
+            for (int i = loaded.size() - 1; i >= 0 && LINES.size() < MAX_LINES; i--) {
+                LINES.addFirst(loaded.get(i));
+            }
+        }
     }
 
     public static void append(String line) {
         if (line == null || line.isEmpty()) return;
         String time = TS.get().format(new Date());
+        final String entry;
         synchronized (LOCK) {
             if (!initialized) return;
             if (line.equals(lastBody) && !LINES.isEmpty()) {
                 lastBodyRepeat++;
                 LINES.pollLast();
                 LINES.addLast(lastBodyTime + " " + line + " (×" + lastBodyRepeat + ")");
-                dirtyFile = true;
-                scheduleFlushLocked();
+                // Collapsing edits the last line in place: rewrite the file, debounced.
+                if (!rewritePending) {
+                    rewritePending = true;
+                    ioHandler.postDelayed(REWRITE_RUNNABLE, FLUSH_DELAY_MS);
+                }
                 return;
             }
-            String entry = time + " " + line;
-            boolean hadDirty = dirtyFile;
-            dirtyFile = false;
+            entry = time + " " + line;
             lastBody = line;
             lastBodyRepeat = 1;
             lastBodyTime = time;
-            trimLinesIfNeeded();
+            while (LINES.size() >= MAX_LINES) LINES.pollFirst();
             LINES.addLast(entry);
-            postIoWrite(hadDirty, entry);
+            if (rewritePending) return; // the pending rewrite will include this line
         }
+        ioHandler.post(() -> appendToFile(entry));
     }
 
-    private static void trimLinesIfNeeded() {
-        while (LINES.size() >= MAX_LINES) LINES.pollFirst();
-    }
-
-    private static void scheduleFlushLocked() {
-        if (ioHandler == null) return;
-        ioHandler.removeCallbacks(REWRITE_RUNNABLE);
-        ioHandler.postDelayed(REWRITE_RUNNABLE, FLUSH_DELAY_MS);
-    }
-
-    private static void rewriteFileRunnable() {
-        synchronized (LOCK) {
-            dirtyFile = false;
-            rewriteFileLocked();
-        }
-    }
-
-    private static void postIoWrite(boolean rewriteFirst, String entry) {
-        if (ioHandler == null) return;
-        ioHandler.post(() -> {
-            synchronized (LOCK) {
-                if (rewriteFirst) rewriteFileLocked();
-                else appendLineToFileLocked(entry);
-            }
-        });
-    }
-
-    private static void appendLineToFileLocked(String entry) {
+    private static void appendToFile(String entry) {
         if (logFile == null) return;
+        if (fileBytes > MAX_FILE_BYTES) {
+            rewriteFile();
+            return;
+        }
         try {
-            if (logFile.exists() && logFile.length() > MAX_FILE_BYTES) {
-                rewriteFileLocked();
-                return;
+            if (writer == null) {
+                writer = new BufferedWriter(new OutputStreamWriter(
+                        new FileOutputStream(logFile, true), StandardCharsets.UTF_8));
             }
-            try (BufferedWriter bw = new BufferedWriter(new FileWriter(logFile, true))) {
-                bw.write(entry);
-                bw.newLine();
-            }
-        } catch (Throwable ignored) {}
+            writer.write(entry);
+            writer.newLine();
+            writer.flush();
+            fileBytes += entry.length() + 1;
+        } catch (Throwable t) {
+            closeWriter();
+        }
     }
 
-    private static void rewriteFileLocked() {
+    /** Replaces the file with the current buffer. The snapshot is taken under the lock; the
+     *  write happens outside it, to a temp file that is renamed over the log. */
+    private static void rewriteFile() {
+        List<String> snapshot;
+        synchronized (LOCK) {
+            rewritePending = false;
+            snapshot = new ArrayList<>(LINES);
+        }
         if (logFile == null) return;
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(logFile, false))) {
-            for (String s : LINES) {
+        closeWriter();
+        File tmp = new File(logFile.getPath() + ".tmp");
+        long bytes = 0;
+        try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(
+                new FileOutputStream(tmp, false), StandardCharsets.UTF_8))) {
+            for (String s : snapshot) {
                 bw.write(s);
                 bw.newLine();
+                bytes += s.length() + 1;
             }
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            //noinspection ResultOfMethodCallIgnored
+            tmp.delete();
+            return;
+        }
+        if (tmp.renameTo(logFile)) fileBytes = bytes;
+    }
+
+    private static void closeWriter() {
+        if (writer == null) return;
+        try { writer.close(); } catch (Throwable ignored) {}
+        writer = null;
     }
 
     public static void clear() {
+        Handler io;
         synchronized (LOCK) {
             LINES.clear();
             lastBody = null;
             lastBodyRepeat = 1;
             lastBodyTime = null;
-            dirtyFile = false;
+            rewritePending = false;
+            io = ioHandler;
         }
-        if (ioHandler != null) {
-            ioHandler.removeCallbacks(REWRITE_RUNNABLE);
-            ioHandler.post(() -> {
-                synchronized (LOCK) {
-                    if (logFile != null && logFile.exists()) {
-                        try { logFile.delete(); } catch (Throwable ignored) {}
-                    }
+        if (io != null) {
+            io.removeCallbacks(REWRITE_RUNNABLE);
+            io.post(() -> {
+                closeWriter();
+                fileBytes = 0;
+                if (logFile != null && logFile.exists()) {
+                    try { //noinspection ResultOfMethodCallIgnored
+                        logFile.delete();
+                    } catch (Throwable ignored) {}
                 }
             });
         }

@@ -1,5 +1,6 @@
 package ps.reso.instaeclipse.mods.misc;
 
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.ClipData;
@@ -24,7 +25,6 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
@@ -36,9 +36,9 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
@@ -90,15 +90,15 @@ public class CommentCopyHook {
     private static java.lang.reflect.Field repoField;   // Dcq -> MediaCommentListRepository
     private static java.lang.reflect.Method resolverMethod; // static (Object,String,String) -> EGL
 
-    public void install(DexKitBridge bridge, ClassLoader classLoader) {
+    public void install(LazyDexKit bridge, ClassLoader classLoader) {
         // Track current Activity for showing dialogs
         try {
-            XposedHelpers.findAndHookMethod(Activity.class, "onResume", new XC_MethodHook() {
+            HookHelpers.findAndHookMethod(Activity.class, "onResume", new MethodHook() {
                 @Override protected void afterHookedMethod(MethodHookParam p) {
                     currentActivity = (Activity) p.thisObject;
                 }
             });
-            XposedHelpers.findAndHookMethod(Activity.class, "onDestroy", new XC_MethodHook() {
+            HookHelpers.findAndHookMethod(Activity.class, "onDestroy", new MethodHook() {
                 @Override protected void afterHookedMethod(MethodHookParam p) {
                     if (currentActivity == p.thisObject) currentActivity = null;
                 }
@@ -115,7 +115,7 @@ public class CommentCopyHook {
                     && resolveRepoField(cachedFmj.getDeclaringClass())) {
                 resolverMethod = cachedResolver;
                 resolverMethod.setAccessible(true);
-                XposedBridge.hookMethod(cachedFmj, SHOW_MENU_HOOK);
+                HookBridge.hookMethod(cachedFmj, SHOW_MENU_HOOK);
                 ModuleLog.line("(InstaEclipse | CopyComment): ✅ Hooked (cached, new) "
                         + cachedFmj.getDeclaringClass().getName() + "." + cachedFmj.getName());
                 FeatureStatusTracker.setHooked("CopyComment");
@@ -126,7 +126,7 @@ public class CommentCopyHook {
                     DexKitCache.loadMethods(CACHE_KEY_OLD, classLoader);
             if (cachedLongPress != null && !cachedLongPress.isEmpty()) {
                 for (java.lang.reflect.Method m : cachedLongPress) {
-                    XposedBridge.hookMethod(m, LONG_PRESS_HOOK);
+                    HookBridge.hookMethod(m, LONG_PRESS_HOOK);
                 }
                 ModuleLog.line("(InstaEclipse | CopyComment): ✅ Hooked (cached, legacy) – "
                         + cachedLongPress.size() + " method(s)");
@@ -149,7 +149,7 @@ public class CommentCopyHook {
         }
     }
 
-    private boolean findAndHookNew(DexKitBridge bridge, ClassLoader classLoader) {
+    private boolean findAndHookNew(LazyDexKit bridge, ClassLoader classLoader) {
         try {
             Class<?> effectHandlerClass = classLoader.loadClass(EFFECT_HANDLER_CLASS);
 
@@ -204,7 +204,7 @@ public class CommentCopyHook {
                 return false;
             }
 
-            XposedBridge.hookMethod(fmj, SHOW_MENU_HOOK);
+            HookBridge.hookMethod(fmj, SHOW_MENU_HOOK);
             DexKitCache.saveMethod(CACHE_KEY, fmj);
             DexKitCache.saveMethod(CACHE_RESOLVER_KEY, resolverMethod);
             FeatureStatusTracker.setHooked("CopyComment");
@@ -222,7 +222,7 @@ public class CommentCopyHook {
 
     private static final String CACHE_KEY_OLD = "CommentCopy_LongPress";
 
-    private void findAndHookOld(DexKitBridge bridge, ClassLoader classLoader) {
+    private void findAndHookOld(LazyDexKit bridge, ClassLoader classLoader) {
         List<MethodData> found = bridge.findMethod(FindMethod.create()
                 .matcher(MethodMatcher.create()
                         .name("onLongPress")
@@ -264,7 +264,7 @@ public class CommentCopyHook {
         for (MethodData md : found) {
             try {
                 java.lang.reflect.Method m = md.getMethodInstance(classLoader);
-                XposedBridge.hookMethod(m, LONG_PRESS_HOOK);
+                HookBridge.hookMethod(m, LONG_PRESS_HOOK);
                 hooked.add(m);
                 ModuleLog.line("(InstaEclipse | CopyComment): ✅ Hooked (legacy) "
                         + md.getClassName() + ".onLongPress");
@@ -279,7 +279,7 @@ public class CommentCopyHook {
         }
     }
 
-    private static final XC_MethodHook LONG_PRESS_HOOK = new XC_MethodHook() {
+    private static final MethodHook LONG_PRESS_HOOK = new MethodHook() {
         @Override
         protected void beforeHookedMethod(MethodHookParam param) {
             if (!FeatureFlags.enableCopyComment) return;
@@ -444,7 +444,7 @@ public class CommentCopyHook {
         return null;
     }
 
-    private static final XC_MethodHook SHOW_MENU_HOOK = new XC_MethodHook() {
+    private static final MethodHook SHOW_MENU_HOOK = new MethodHook() {
         @Override
         protected void beforeHookedMethod(MethodHookParam param) {
             if (!FeatureFlags.enableCopyComment) return;

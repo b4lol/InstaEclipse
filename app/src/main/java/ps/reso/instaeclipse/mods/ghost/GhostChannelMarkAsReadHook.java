@@ -8,9 +8,11 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.ViewAttachDispatcher;
+import ps.reso.instaeclipse.utils.ui.ResIds;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.i18n.I18n;
@@ -20,41 +22,27 @@ public class GhostChannelMarkAsReadHook {
 
     private static final String CHANNEL_TAG = "ie_channel_seen";
 
-    // Cached once on first use — resource IDs are constant for a given app install.
-    private static volatile int sCachedSeenStateId = 0;
-    private static volatile int sCachedHeaderButtonsId = 0;
-
     public void install(ClassLoader classLoader) {
         try {
-            XposedHelpers.findAndHookMethod(View.class, "onAttachedToWindow", new XC_MethodHook() {
+            ViewAttachDispatcher.register(new ViewAttachDispatcher.Listener() {
+                // Shared View.onAttachedToWindow hook: runs for every attached view, so only
+                // compare ids here; nothing runs at all while the feature is off.
                 @Override
-                protected void afterHookedMethod(MethodHookParam param) {
-                    // Bail immediately if the feature is off — this hook fires for every
-                    // view attachment in the entire app, so the fast path must be trivial.
-                    if (!FeatureFlags.isGhostSeen) return;
+                public boolean isActive() {
+                    return FeatureFlags.isGhostSeen;
+                }
 
-                    View view = (View) param.thisObject;
+                @Override
+                public void onAttached(View view) {
                     Context context = view.getContext();
 
-                    if (sCachedSeenStateId == 0) {
-                        @SuppressLint("DiscouragedApi")
-                        int id = context.getResources().getIdentifier(
-                                "seen_state_text", "id", context.getPackageName());
-                        sCachedSeenStateId = id;
-                    }
-
-                    if (sCachedSeenStateId == 0 || view.getId() != sCachedSeenStateId) return;
+                    int seenStateId = ResIds.id(context, "seen_state_text");
+                    if (seenStateId == 0 || view.getId() != seenStateId) return;
                     if (!(view instanceof TextView seenTextView)) return;
 
-                    if (sCachedHeaderButtonsId == 0) {
-                        @SuppressLint("DiscouragedApi")
-                        int id = context.getResources().getIdentifier(
-                                "header_right_buttons", "id", context.getPackageName());
-                        sCachedHeaderButtonsId = id;
-                    }
-
-                    if (sCachedHeaderButtonsId != 0) {
-                        View container = view.getRootView().findViewById(sCachedHeaderButtonsId);
+                    int headerButtonsId = ResIds.id(context, "header_right_buttons");
+                    if (headerButtonsId != 0) {
+                        View container = view.getRootView().findViewById(headerButtonsId);
                         if (container instanceof ViewGroup viewGroup) {
                             for (int i = 0; i < viewGroup.getChildCount(); i++) {
                                 CharSequence description = viewGroup.getChildAt(i).getContentDescription();

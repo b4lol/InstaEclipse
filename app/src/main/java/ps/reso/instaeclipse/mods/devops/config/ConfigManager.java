@@ -13,7 +13,7 @@ import java.util.Scanner;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.utils.i18n.I18n;
 import ps.reso.instaeclipse.utils.log.ModuleLog;
@@ -74,15 +74,23 @@ public class ConfigManager {
     /** Validates and writes JSON to Instagram's mc_overrides.json file. */
     private static void writeConfigJson(Context context, String json) throws Exception {
         if (json == null || json.isEmpty()) throw new IllegalArgumentException("Empty JSON");
-        if (!json.startsWith("{") || !json.endsWith("}")) throw new IllegalArgumentException("Not valid JSON");
+        // Parse for real: a truncated/garbled file must never replace Instagram's overrides.
+        new org.json.JSONObject(json);
 
         File dest = new File(context.getFilesDir(), "mobileconfig/mc_overrides.json");
         File parent = dest.getParentFile();
         if (parent != null && !parent.exists()) parent.mkdirs();
 
-        try (FileOutputStream fos = new FileOutputStream(dest, false)) {
+        // Write to a temp file and rename so a crash mid-write can't leave a half file behind.
+        File tmp = new File(parent, "mc_overrides.json.tmp");
+        try (FileOutputStream fos = new FileOutputStream(tmp, false)) {
             fos.write(json.getBytes(StandardCharsets.UTF_8));
-            fos.flush();
+            fos.getFD().sync();
+        }
+        if (!tmp.renameTo(dest)) {
+            //noinspection ResultOfMethodCallIgnored
+            tmp.delete();
+            throw new java.io.IOException("Could not replace mc_overrides.json");
         }
     }
 }

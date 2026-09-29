@@ -1,6 +1,6 @@
 package ps.reso.instaeclipse.mods.devops;
 
-import org.luckypray.dexkit.DexKitBridge;
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
@@ -15,9 +15,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.Xposed.Module;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
@@ -47,7 +47,7 @@ public class DevOptionsUnlockHook {
             36310864701161762L, // older observed build
     };
 
-    public void handleDevOptions(DexKitBridge bridge) {
+    public void handleDevOptions(LazyDexKit bridge) {
         if (DexKitCache.isCacheValid()) {
             Method cachedMethod = DexKitCache.loadMethod("DevOptionsMethod", Module.hostClassLoader);
             if (cachedMethod != null) {
@@ -67,7 +67,7 @@ public class DevOptionsUnlockHook {
         }
     }
 
-    private void findAndHookDynamicMethod(DexKitBridge bridge) {
+    private void findAndHookDynamicMethod(LazyDexKit bridge) {
         try {
             // Tier 1: Existing String-based search
             ModuleLog.line("(InstaEclipse | DevOptionsEnable): 🔍 Discovery Tier 1 (String)...");
@@ -168,7 +168,7 @@ public class DevOptionsUnlockHook {
      *    call them. Ordinary single-feature checks have 1-2 callers; the shared employee
      *    gate is reused everywhere.
      */
-    private MethodData resolveEmployeeGateStructurally(DexKitBridge bridge) {
+    private MethodData resolveEmployeeGateStructurally(LazyDexKit bridge) {
         try {
             List<MethodData> getters = bridge.findMethod(FindMethod.create()
                     .matcher(MethodMatcher.create()
@@ -212,7 +212,7 @@ public class DevOptionsUnlockHook {
     private void hookExactMethod(Method m) {
         try {
             m.setAccessible(true);
-            XposedBridge.hookMethod(m, new XC_MethodHook() {
+            HookBridge.hookMethod(m, new MethodHook() {
                 @Override
                 protected void beforeHookedMethod(MethodHookParam param) {
                     if (FeatureFlags.isDevEnabled) {
@@ -227,7 +227,7 @@ public class DevOptionsUnlockHook {
         }
     }
 
-    private boolean inspectInvokedMethods(DexKitBridge bridge, MethodData method) {
+    private boolean inspectInvokedMethods(LazyDexKit bridge, MethodData method) {
         try {
             List<MethodData> invokedMethods = method.getInvokes();
             if (invokedMethods.isEmpty()) return false;
@@ -258,7 +258,7 @@ public class DevOptionsUnlockHook {
     private void hookBooleanMethodsViaReflection(String className) {
         try {
             Class<?> clazz = Module.hostClassLoader.loadClass(className);
-            XC_MethodHook hook = new XC_MethodHook() {
+            MethodHook hook = new MethodHook() {
                 @Override
                 protected void beforeHookedMethod(MethodHookParam param) {
                     if (FeatureFlags.isDevEnabled) {
@@ -273,7 +273,7 @@ public class DevOptionsUnlockHook {
                 if (params.length != 1) continue;
                 if (!params[0].getName().equals("com.instagram.common.session.UserSession")) continue;
                 m.setAccessible(true);
-                XposedBridge.hookMethod(m, hook);
+                HookBridge.hookMethod(m, hook);
                 ModuleLog.line("(InstaEclipse | DevOptionsEnable): ✅ Hooked (cache): " + className + "." + m.getName());
             }
         } catch (Throwable e) {
@@ -281,7 +281,7 @@ public class DevOptionsUnlockHook {
         }
     }
 
-    private void hookAllBooleanMethodsInClass(DexKitBridge bridge, String className) {
+    private void hookAllBooleanMethodsInClass(LazyDexKit bridge, String className) {
         try {
             List<MethodData> methods = bridge.findMethod(FindMethod.create()
                     .matcher(MethodMatcher.create().declaredClass(className))
@@ -297,7 +297,7 @@ public class DevOptionsUnlockHook {
                 if (returnType.contains("boolean") && paramTypes.size() == 1 && paramTypes.get(0).contains("com.instagram.common.session.UserSession")) {
                     try {
                         Method targetMethod = method.getMethodInstance(Module.hostClassLoader);
-                        XposedHelpers.findAndHookMethod(targetMethod.getDeclaringClass(), targetMethod.getName(), targetMethod.getParameterTypes()[0], new XC_MethodHook() {
+                        HookHelpers.findAndHookMethod(targetMethod.getDeclaringClass(), targetMethod.getName(), targetMethod.getParameterTypes()[0], new MethodHook() {
                             @Override
                             protected void beforeHookedMethod(MethodHookParam param) {
                                 if (FeatureFlags.isDevEnabled) {

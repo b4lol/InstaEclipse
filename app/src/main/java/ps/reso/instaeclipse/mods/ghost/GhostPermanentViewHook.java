@@ -1,6 +1,6 @@
 package ps.reso.instaeclipse.mods.ghost;
 
-import org.luckypray.dexkit.DexKitBridge;
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
@@ -9,8 +9,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
@@ -50,11 +50,11 @@ public class GhostPermanentViewHook {
     public static final java.util.Map<Long, String> ORIGINAL_BY_KEY =
             new java.util.concurrent.ConcurrentHashMap<>();
 
-    public void install(DexKitBridge bridge, ClassLoader classLoader) {
+    public void install(LazyDexKit bridge, ClassLoader classLoader) {
         if (DexKitCache.isCacheValid()) {
             Method cached = DexKitCache.loadMethod("ViewOnceMedia", classLoader);
             if (cached != null) {
-                XposedBridge.hookMethod(cached, buildHook());
+                HookBridge.hookMethod(cached, buildHook());
                 FeatureStatusTracker.setHooked("PermanentViewMode");
                 return;
             }
@@ -97,7 +97,7 @@ public class GhostPermanentViewHook {
                     + target.getDeclaringClass().getName() + "." + target.getName());
 
             DexKitCache.saveMethod("ViewOnceMedia", target);
-            XposedBridge.hookMethod(target, buildHook());
+            HookBridge.hookMethod(target, buildHook());
 
             FeatureStatusTracker.setHooked("PermanentViewMode");
             ModuleLog.line("(IE|ViewOnceMedia) ✅ hooked");
@@ -107,8 +107,8 @@ public class GhostPermanentViewHook {
         }
     }
 
-    private static XC_MethodHook buildHook() {
-        return new XC_MethodHook() {
+    private static MethodHook buildHook() {
+        return new MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.permanentViewMode) return;

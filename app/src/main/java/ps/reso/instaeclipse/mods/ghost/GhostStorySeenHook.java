@@ -1,6 +1,6 @@
 package ps.reso.instaeclipse.mods.ghost;
 
-import org.luckypray.dexkit.DexKitBridge;
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
@@ -10,8 +10,8 @@ import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Map;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.Xposed.Module;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
@@ -39,7 +39,7 @@ public class GhostStorySeenHook {
     private static final String CACHE_KEY        = "GhostStorySeen_v2";     // modern: store class name
     private static final String CACHE_KEY_LEGACY = "GhostStorySeen_legacy"; // legacy: sender method
 
-    public void handleStorySeenBlock(DexKitBridge bridge) {
+    public void handleStorySeenBlock(LazyDexKit bridge) {
         // Fast path: whichever path was resolved+cached last (per IG version).
         if (DexKitCache.isCacheValid()) {
             String storeName = DexKitCache.loadString(CACHE_KEY);
@@ -56,7 +56,7 @@ public class GhostStorySeenHook {
             }
             Method legacy = DexKitCache.loadMethod(CACHE_KEY_LEGACY, Module.hostClassLoader);
             if (legacy != null) {
-                XposedBridge.hookMethod(legacy, legacyHook());
+                HookBridge.hookMethod(legacy, legacyHook());
                 ModuleLog.line("(InstaEclipse | StoryBlock): ✅ Hooked (cached legacy): "
                         + legacy.getDeclaringClass().getName() + "." + legacy.getName());
                 FeatureStatusTracker.setHooked("GhostStories");
@@ -71,7 +71,7 @@ public class GhostStorySeenHook {
     }
 
     /** IG 442+/447: block the reel-seen store's inserts + immediate sender. */
-    private boolean tryModernBatchBlock(DexKitBridge bridge) {
+    private boolean tryModernBatchBlock(LazyDexKit bridge) {
         try {
             List<MethodData> seenMethods = bridge.findMethod(FindMethod.create()
                     .matcher(MethodMatcher.create().usingStrings("media/seen/")));
@@ -111,7 +111,7 @@ public class GhostStorySeenHook {
     }
 
     /** IG <=441 (436): the sender is a single {@code final void ()} method referencing "media/seen/". */
-    private boolean tryLegacyBlock(DexKitBridge bridge) {
+    private boolean tryLegacyBlock(LazyDexKit bridge) {
         try {
             List<MethodData> methods = bridge.findMethod(FindMethod.create()
                     .matcher(MethodMatcher.create().usingStrings("media/seen/")));
@@ -122,7 +122,7 @@ public class GhostStorySeenHook {
                 int mod = m.getModifiers();
                 if (Modifier.isFinal(mod) && m.getReturnType() == void.class && m.getParameterCount() == 0) {
                     DexKitCache.saveMethod(CACHE_KEY_LEGACY, m);
-                    XposedBridge.hookMethod(m, legacyHook());
+                    HookBridge.hookMethod(m, legacyHook());
                     ModuleLog.line("(InstaEclipse | StoryBlock): ✅ Hooked (legacy): "
                             + method.getClassName() + "." + method.getName());
                     FeatureStatusTracker.setHooked("GhostStories");
@@ -135,8 +135,8 @@ public class GhostStorySeenHook {
         return false;
     }
 
-    private static XC_MethodHook legacyHook() {
-        return new XC_MethodHook() {
+    private static MethodHook legacyHook() {
+        return new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (FeatureFlags.isGhostStory) param.setResult(null);
@@ -153,7 +153,7 @@ public class GhostStorySeenHook {
      * Returns the number of methods hooked.
      */
     private int hookStoreSendersScopedTo(final Class<?> storeClass) {
-        XC_MethodHook gate = new XC_MethodHook() {
+        MethodHook gate = new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (FeatureFlags.isGhostStory
@@ -175,7 +175,7 @@ public class GhostStorySeenHook {
                 boolean perItem = p.length == 2 && p[0] == String.class && p[1] == Object.class;
                 boolean bulk    = p.length == 1 && Map.class.isAssignableFrom(p[0]);
                 if (!perItem && !bulk) continue;
-                try { m.setAccessible(true); XposedBridge.hookMethod(m, gate); hooked++; found = true; }
+                try { m.setAccessible(true); HookBridge.hookMethod(m, gate); hooked++; found = true; }
                 catch (Throwable t) { ModuleLog.line("(InstaEclipse | StoryBlock): ⚠️ insert hook failed: " + t.getMessage()); }
             }
             if (found) break; // inserts all live on the same base level
@@ -190,7 +190,7 @@ public class GhostStorySeenHook {
             Class<?> pt = p[0];
             if (pt.isPrimitive() || pt == String.class || Map.class.isAssignableFrom(pt)
                     || java.util.Collection.class.isAssignableFrom(pt)) continue;
-            try { m.setAccessible(true); XposedBridge.hookMethod(m, gate); hooked++; }
+            try { m.setAccessible(true); HookBridge.hookMethod(m, gate); hooked++; }
             catch (Throwable t) { ModuleLog.line("(InstaEclipse | StoryBlock): ⚠️ immediate-sender hook failed: " + t.getMessage()); }
         }
 

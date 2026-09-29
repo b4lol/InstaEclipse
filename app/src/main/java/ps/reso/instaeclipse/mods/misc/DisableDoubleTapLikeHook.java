@@ -1,10 +1,10 @@
 package ps.reso.instaeclipse.mods.misc;
 
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import android.view.GestureDetector;
 import android.view.View;
 import android.view.ViewParent;
 
-import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindClass;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.ClassMatcher;
@@ -19,8 +19,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
@@ -30,7 +30,7 @@ public class DisableDoubleTapLikeHook {
 
     private final Set<String> hookedMethods = new HashSet<>();
 
-    private static final XC_MethodHook HOOK = new XC_MethodHook() {
+    private static final MethodHook HOOK = new MethodHook() {
         @Override
         protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
             if (!FeatureFlags.disableDoubleTapLike) return;
@@ -45,7 +45,7 @@ public class DisableDoubleTapLikeHook {
         }
     };
 
-    private static final XC_MethodHook REELS_GESTURE_HOOK = new XC_MethodHook() {
+    private static final MethodHook REELS_GESTURE_HOOK = new MethodHook() {
         @Override
         protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
             if (!FeatureFlags.disableDoubleTapLike) return;
@@ -54,7 +54,7 @@ public class DisableDoubleTapLikeHook {
         }
     };
 
-    public void install(DexKitBridge bridge, ClassLoader classLoader) {
+    public void install(LazyDexKit bridge, ClassLoader classLoader) {
         boolean cachedFeedHooked = false;
         boolean cachedReelsHooked = false;
         if (DexKitCache.isCacheValid()) {
@@ -67,7 +67,10 @@ public class DisableDoubleTapLikeHook {
             boolean cachedGestureReelsHooked = hookMethods(reelsGestureCached, REELS_GESTURE_HOOK) > 0;
             cachedReelsHooked = cachedLegacyReelsHooked || cachedGestureReelsHooked;
 
-            if (cachedFeedHooked && cachedGestureReelsHooked) {
+            // A feed entry that doesn't exist in this Instagram version is remembered too,
+            // otherwise the full DexKit search reruns on every launch.
+            boolean feedKnownMissing = "missing".equals(DexKitCache.loadString("DoubleTapLike"));
+            if ((cachedFeedHooked || feedKnownMissing) && cachedGestureReelsHooked) {
                 ModuleLog.line("(InstaEclipse | DoubleTapLike): Hooked (cached)");
                 FeatureStatusTracker.setHooked("DisableDoubleTapLike");
                 return;
@@ -80,7 +83,7 @@ public class DisableDoubleTapLikeHook {
         }
     }
 
-    private void findAndHook(DexKitBridge bridge, ClassLoader classLoader, boolean feedAlreadyHooked, boolean reelsAlreadyHooked) {
+    private void findAndHook(LazyDexKit bridge, ClassLoader classLoader, boolean feedAlreadyHooked, boolean reelsAlreadyHooked) {
         boolean feedHooked = feedAlreadyHooked;
         boolean reelsHooked = reelsAlreadyHooked;
 
@@ -105,6 +108,7 @@ public class DisableDoubleTapLikeHook {
             }
             if (feedMethods.isEmpty()) {
                 ModuleLog.line("(InstaEclipse | DoubleTapLike): Feed method not found");
+                DexKitCache.saveString("DoubleTapLike", "missing");
             }
         }
 
@@ -148,7 +152,7 @@ public class DisableDoubleTapLikeHook {
         }
     }
 
-    private List<Method> findReelsGestureMethods(DexKitBridge bridge, ClassLoader classLoader) {
+    private List<Method> findReelsGestureMethods(LazyDexKit bridge, ClassLoader classLoader) {
         List<Method> methods = new ArrayList<>();
         try {
             List<MethodData> callbacks = bridge.findMethod(FindMethod.create()
@@ -174,13 +178,13 @@ public class DisableDoubleTapLikeHook {
         return methods;
     }
 
-    private boolean hookMethod(Method method, XC_MethodHook hook) {
+    private boolean hookMethod(Method method, MethodHook hook) {
         if (method == null) return false;
         try {
             String key = signature(method);
             if (!hookedMethods.add(key)) return true;
             method.setAccessible(true);
-            XposedBridge.hookMethod(method, hook);
+            HookBridge.hookMethod(method, hook);
             return true;
         } catch (Throwable e) {
             ModuleLog.line("(InstaEclipse | DoubleTapLike): Hook failed: " + e.getMessage());
@@ -188,7 +192,7 @@ public class DisableDoubleTapLikeHook {
         }
     }
 
-    private int hookMethods(List<Method> methods, XC_MethodHook hook) {
+    private int hookMethods(List<Method> methods, MethodHook hook) {
         if (methods == null || methods.isEmpty()) return 0;
         int hooked = 0;
         for (Method method : methods) {
@@ -197,7 +201,7 @@ public class DisableDoubleTapLikeHook {
         return hooked;
     }
 
-    private static void block(XC_MethodHook.MethodHookParam param) {
+    private static void block(MethodHook.MethodHookParam param) {
         if (param.method instanceof Method) {
             Class<?> returnType = ((Method) param.method).getReturnType();
             if (returnType == boolean.class || returnType == Boolean.class) {

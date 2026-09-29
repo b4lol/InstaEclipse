@@ -1,6 +1,6 @@
 package ps.reso.instaeclipse.mods.ghost;
 
-import org.luckypray.dexkit.DexKitBridge;
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
@@ -11,8 +11,8 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
@@ -37,17 +37,24 @@ import ps.reso.instaeclipse.utils.log.ModuleLog;
  */
 public class ViewOnceBadgeHook {
 
-    public void install(DexKitBridge bridge, ClassLoader classLoader) {
-        XC_MethodHook hook = buildHook();
+    private static final String CACHE_KEY = "ViewOnceBadge_members";
+
+    public void install(LazyDexKit bridge, ClassLoader classLoader) {
+        MethodHook hook = buildHook();
 
         if (DexKitCache.isCacheValid()) {
-            Method cached = DexKitCache.loadMethod("ViewOnceBadge", classLoader);
-            if (cached != null) {
-                XposedBridge.hookMethod(cached, hook);
-                ModuleLog.line("(IE|VOBadge) ✅ hooked (cached): "
-                        + cached.getDeclaringClass().getName());
-                FeatureStatusTracker.setHooked("PermanentViewMode");
-                return;
+            // Previously only read, never written, so DexKit ran on every launch.
+            List<Member> cached = DexKitCache.loadMembers(CACHE_KEY, classLoader);
+            if (cached != null && !cached.isEmpty()) {
+                int n = 0;
+                for (Member m : cached) {
+                    try { HookBridge.hookMethod(m, hook); n++; } catch (Throwable ignored) {}
+                }
+                if (n > 0) {
+                    ModuleLog.line("(IE|VOBadge) ✅ hooked " + n + " (cached)");
+                    FeatureStatusTracker.setHooked("PermanentViewMode");
+                    return;
+                }
             }
         }
 
@@ -66,12 +73,14 @@ public class ViewOnceBadgeHook {
             // permanentViewMode and only logs / restores, so hooking several is harmless and
             // tells us which class actually carries the view_mode we must restore.
             int hooked = 0;
+            List<Member> resolved = new java.util.ArrayList<>();
             for (MethodData md : methods) {
                 try {
                     Member member = md.isConstructor()
                             ? md.getConstructorInstance(classLoader)
                             : md.getMethodInstance(classLoader);
-                    XposedBridge.hookMethod((java.lang.reflect.Member) member, hook);
+                    HookBridge.hookMethod((java.lang.reflect.Member) member, hook);
+                    resolved.add(member);
                     ModuleLog.line("(IE|VOBadge) ✅ hooked " + md.getClassName()
                             + (md.isConstructor() ? ".<init>" : "." + md.getName()));
                     hooked++;
@@ -83,14 +92,15 @@ public class ViewOnceBadgeHook {
                 ModuleLog.line("(IE|VOBadge) ❌ props ctor found but none reflectable");
                 return;
             }
+            DexKitCache.saveMembers(CACHE_KEY, resolved);
             FeatureStatusTracker.setHooked("PermanentViewMode");
         } catch (Throwable t) {
             ModuleLog.line("(IE|VOBadge) ❌ " + t);
         }
     }
 
-    private XC_MethodHook buildHook() {
-        return new XC_MethodHook() {
+    private MethodHook buildHook() {
+        return new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.permanentViewMode) return;

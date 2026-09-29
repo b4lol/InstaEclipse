@@ -1,6 +1,6 @@
 package ps.reso.instaeclipse.mods.ads;
 
-import org.luckypray.dexkit.DexKitBridge;
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
@@ -8,8 +8,8 @@ import org.luckypray.dexkit.result.MethodData;
 import java.lang.reflect.Method;
 import java.util.List;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
@@ -26,8 +26,8 @@ public class AdBlocker {
             "SponsoredContentController.insertItem"
     };
 
-    public void disableSponsoredContent(DexKitBridge bridge, ClassLoader classLoader) {
-        XC_MethodHook hook = new XC_MethodHook() {
+    public void disableSponsoredContent(LazyDexKit bridge, ClassLoader classLoader) {
+        MethodHook hook = new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 if (FeatureFlags.isAdBlockEnabled) param.setResult(false);
@@ -37,7 +37,7 @@ public class AdBlocker {
         if (DexKitCache.isCacheValid()) {
             Method cached = DexKitCache.loadMethod("AdBlocker", classLoader);
             if (cached != null) {
-                XposedBridge.hookMethod(cached, hook);
+                HookBridge.hookMethod(cached, hook);
                 FeatureStatusTracker.setHooked("AdBlocker");
                 return;
             }
@@ -63,7 +63,7 @@ public class AdBlocker {
                     try {
                         Method targetMethod = method.getMethodInstance(classLoader);
                         DexKitCache.saveMethod("AdBlocker", targetMethod);
-                        XposedBridge.hookMethod(targetMethod, hook);
+                        HookBridge.hookMethod(targetMethod, hook);
 
                         ModuleLog.line("(InstaEclipse | AdBlocker): ✅ Hooked (dynamic check, marker='" + marker + "'): " +
                                 method.getClassName() + "." + method.getName());

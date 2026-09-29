@@ -1,7 +1,8 @@
 package ps.reso.instaeclipse.mods.media;
 
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import android.app.AlertDialog;
-import android.app.AndroidAppHelper;
+import ps.reso.instaeclipse.hook.HostApp;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.res.Configuration;
@@ -21,7 +22,6 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.luckypray.dexkit.DexKitBridge;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
@@ -34,8 +34,8 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
@@ -78,7 +78,7 @@ public class StoryDownloadHook {
 
     // ── Entry point ──────────────────────────────────────────────────────────
 
-    public void install(DexKitBridge bridge, ClassLoader classLoader) {
+    public void install(LazyDexKit bridge, ClassLoader classLoader) {
         try {
             videoVersionIntfClass = classLoader.loadClass("com.instagram.model.mediasize.VideoVersionIntf");
             videoVersionGetUrl    = videoVersionIntfClass.getMethod("getUrl");
@@ -93,7 +93,7 @@ public class StoryDownloadHook {
     // ── Story cache: capture each VIEWED story (per-page bind, fires for every story shown) ──
     private static java.lang.reflect.Method expiringGetter; // Media."expiring_at" getter, () -> Long
 
-    private void resolveExpiringGetter(DexKitBridge bridge, ClassLoader cl) {
+    private void resolveExpiringGetter(LazyDexKit bridge, ClassLoader cl) {
         try {
             if (DexKitCache.isCacheValid()) {
                 java.lang.reflect.Method c = DexKitCache.loadMethod("StoryCache_expiring", cl);
@@ -117,8 +117,8 @@ public class StoryDownloadHook {
      * by that stable string; the method name is obfuscated) which fires for EVERY story shown. Its
      * first ReelItem param is the current story; we record it to the 24h cache.
      */
-    private void installStoryCaptureHook(DexKitBridge bridge, ClassLoader cl) {
-        XC_MethodHook capture = new XC_MethodHook() {
+    private void installStoryCaptureHook(LazyDexKit bridge, ClassLoader cl) {
+        MethodHook capture = new MethodHook() {
             @Override protected void afterHookedMethod(MethodHookParam p) {
                 if (!FeatureFlags.cacheStories) return;
                 Object reelItem = null;
@@ -130,9 +130,9 @@ public class StoryDownloadHook {
         };
         try {
             int n = 0;
-            for (MethodData md : bridge.findMethod(FindMethod.create().matcher(MethodMatcher.create()
-                    .usingStrings("ReelViewerFragment.onCurrentActiveItemBound")))) {
-                try { XposedBridge.hookMethod(md.getMethodInstance(cl), capture); n++; } catch (Throwable ignored) {}
+            for (Method m : bridge.findMethodsUsingStringCached("StoryCache_capture", cl,
+                    "ReelViewerFragment.onCurrentActiveItemBound")) {
+                try { HookBridge.hookMethod(m, capture); n++; } catch (Throwable ignored) {}
             }
             if (n > 0 && FeatureFlags.cacheStories) FeatureStatusTracker.setHooked("CacheStories");
             ModuleLog.line("(IE|StoryCache) capture hook: " + n + " method(s)");
@@ -143,7 +143,7 @@ public class StoryDownloadHook {
         try {
             Object media = findMediaObject(reelItem);
             if (media == null) return;
-            Context ctx = AndroidAppHelper.currentApplication();
+            Context ctx = HostApp.get();
             String id;
             try {
                 Object rid = reelItem.getClass().getMethod("getId").invoke(reelItem);
@@ -176,7 +176,7 @@ public class StoryDownloadHook {
     // Found via "[INTERNAL] Pause Playback" string + CharSequence[] return type, 1 param.
     // afterHookedMethod: appends our "Download" entry to the returned CharSequence[] array.
 
-    private void installButtonInjectorHook(DexKitBridge bridge, ClassLoader classLoader) {
+    private void installButtonInjectorHook(LazyDexKit bridge, ClassLoader classLoader) {
         // Hook EVERY CharSequence[]-returning candidate behind the "[INTERNAL] Pause Playback"
         // anchor — NOT just the first 1-arg one. Instagram builds the option list with a DIFFERENT
         // method for your OWN story (a 3-arg static helper: Delete/Archive/Save video/…) than for
@@ -186,22 +186,21 @@ public class StoryDownloadHook {
         // music, which IG's native Save drops. (Ported from PR #200 by izadiegizabal.) Anchored on
         // the stable string only, so it stays valid across versions; static + instance both accepted.
         try {
-            List<MethodData> methods = bridge.findMethod(FindMethod.create()
-                    .matcher(MethodMatcher.create()
-                            .usingStrings("[INTERNAL] Pause Playback")));
+            List<Method> methods = bridge.findMethodsUsingStringCached("Story_buttonBuilders",
+                    classLoader, "[INTERNAL] Pause Playback");
             if (methods.isEmpty()) {
                 ModuleLog.line("(IE|Story) ❌ Button builder method not found");
                 return;
             }
 
-            XC_MethodHook injector = new XC_MethodHook() {
+            MethodHook injector = new MethodHook() {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
                     if (!FeatureFlags.enableStoryDownload) return;
                     if (!(param.getResult() instanceof CharSequence[] original) || original == null) return;
 
                     // Guard: don't inject twice
-                    String dlLabel = I18n.t(AndroidAppHelper.currentApplication(), R.string.ig_dl_title);
+                    String dlLabel = I18n.t(HostApp.get(), R.string.ig_dl_title);
                     for (CharSequence cs : original) {
                         if (cs != null && dlLabel.contentEquals(cs)) return;
                     }
@@ -214,12 +213,11 @@ public class StoryDownloadHook {
             };
 
             int hooked = 0;
-            for (MethodData md : methods) {
+            for (Method m : methods) {
                 try {
-                    Method m = md.getMethodInstance(classLoader);
                     Class<?> rt = m.getReturnType();
                     if (rt.isArray() && CharSequence.class.isAssignableFrom(rt.getComponentType())) {
-                        XposedBridge.hookMethod(m, injector);
+                        HookBridge.hookMethod(m, injector);
                         hooked++;
                     }
                 } catch (Throwable ignored) {}
@@ -239,7 +237,7 @@ public class StoryDownloadHook {
     // equals "Download", triggers the download. Context and ReelItem are resolved
     // from fields on 'this' or same-class params.
 
-    private void installClickHandlerHook(DexKitBridge bridge, ClassLoader classLoader) {
+    private void installClickHandlerHook(LazyDexKit bridge, ClassLoader classLoader) {
         // Anchor ONLY on the common "[INTERNAL] Pause Playback" string and hook EVERY void
         // dispatcher behind it. The old matcher also required "explore_viewer" +
         // "mute_friend_reel" — but those exist ONLY on someone-else's-story dispatcher, so the
@@ -247,9 +245,9 @@ public class StoryDownloadHook {
         // The self-story dispatcher is a STATIC helper (takes the outer class as a param), so we
         // must not exclude statics. Our runtime label check (tapped == "Download") gates it, so
         // hooking the extra dispatchers is harmless. (Ported from PR #200 by izadiegizabal.)
-        List<MethodData> methods;
+        List<Method> methods;
         try {
-            methods = bridge.findMethod(FindMethod.create()
+            methods = bridge.findMethodsCached("Story_clickHandlers", classLoader, FindMethod.create()
                     .matcher(MethodMatcher.create()
                             .returnType("void")
                             .usingStrings("[INTERNAL] Pause Playback")));
@@ -262,7 +260,7 @@ public class StoryDownloadHook {
             return;
         }
 
-        XC_MethodHook clickHook = new XC_MethodHook() {
+        MethodHook clickHook = new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.enableStoryDownload) return;
@@ -272,7 +270,7 @@ public class StoryDownloadHook {
                 for (Object arg : param.args) {
                     if (arg instanceof CharSequence cs) { tapped = cs; break; }
                 }
-                String dlLabel = I18n.t(AndroidAppHelper.currentApplication(), R.string.ig_dl_title);
+                String dlLabel = I18n.t(HostApp.get(), R.string.ig_dl_title);
                 if (tapped == null || !dlLabel.contentEquals(tapped)) return;
 
                 // 2. Consume the event — Instagram won't process an option it didn't add
@@ -305,11 +303,10 @@ public class StoryDownloadHook {
         };
 
         int hooked = 0;
-        for (MethodData md : methods) {
+        for (Method m : methods) {
             try {
-                Method m = md.getMethodInstance(classLoader);
                 if (m.getParameterCount() == 0) continue; // dispatchers receive the tapped label
-                XposedBridge.hookMethod(m, clickHook);
+                HookBridge.hookMethod(m, clickHook);
                 hooked++;
             } catch (Throwable ignored) {}
         }
@@ -323,7 +320,7 @@ public class StoryDownloadHook {
 
     /** Context lookup for the click dispatcher: try the ReelItem holder, then 'this', then each
      *  argument (self-story passes the Context on a separate arg, or an arg may BE a Context). */
-    private static Context findContextAcrossParam(XC_MethodHook.MethodHookParam param, Object preferred) {
+    private static Context findContextAcrossParam(MethodHook.MethodHookParam param, Object preferred) {
         Context c = findContext(preferred);
         if (c != null) return c;
         if (param.thisObject != preferred) {
@@ -345,7 +342,7 @@ public class StoryDownloadHook {
      * ReelItem field. The click handler sometimes receives a reference to the outer
      * class as a parameter rather than p0/this.
      */
-    private static Object findReelItemHolder(XC_MethodHook.MethodHookParam param) {
+    private static Object findReelItemHolder(MethodHook.MethodHookParam param) {
         if (hasReelItemField(param.thisObject)) return param.thisObject;
         // Check method parameters — the outer class is sometimes passed as an arg
         for (Object arg : param.args) {
@@ -1050,6 +1047,7 @@ public class StoryDownloadHook {
 
     private static void downloadToStream(String url, java.io.OutputStream out) throws Exception {
         java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+        MediaHttp.applyTimeouts(conn);
         conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36");
         conn.connect();
         try (java.io.InputStream in = conn.getInputStream()) {

@@ -14,17 +14,19 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedHelpers;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookHelpers;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
 import ps.reso.instaeclipse.utils.feature.FeatureStatusTracker;
+import ps.reso.instaeclipse.utils.core.PasscodeHasher;
+import ps.reso.instaeclipse.utils.core.SettingsManager;
 import ps.reso.instaeclipse.utils.log.ModuleLog;
 
 /**
  * Lock DMs (GitHub #182): gate the Direct inbox behind the module passcode. When the inbox becomes
  * visible and the session isn't unlocked yet, a full-screen overlay covers the content until the
  * correct passcode is entered. Locks the WHOLE inbox (not individual chats). The passcode is stored
- * as a SHA-256 hash (FeatureFlags.lockDirectPasscode). Gated on FeatureFlags.lockDirectMessages.
+ * as a salted PBKDF2 hash (FeatureFlags.lockDirectPasscode, see PasscodeHasher). Gated on FeatureFlags.lockDirectMessages.
  *
  * Inbox is detected by the stable view id `direct_search_bar_container` (fallback
  * `direct_inbox_null_state`); the thread screen is excluded via `direct_thread_header`.
@@ -43,13 +45,13 @@ public class LockDirectMessagesHook {
         // ModalActivity (a thread/inbox opened full-screen) fires onResume. The DM inbox TAB lives
         // inside InstagramMainActivity, whose onCreate is obfuscated/inherited (a literal hook
         // fails) — so main is covered from UIHookManager.setupHooks via watchActivity() instead.
-        XC_MethodHook start = new XC_MethodHook() {
+        MethodHook start = new MethodHook() {
             @Override protected void afterHookedMethod(MethodHookParam param) {
                 watchActivity((Activity) param.thisObject);
             }
         };
         try {
-            XposedHelpers.findAndHookMethod("com.instagram.modal.ModalActivity",
+            HookHelpers.findAndHookMethod("com.instagram.modal.ModalActivity",
                     classLoader, "onResume", start);
         } catch (Throwable t) { ModuleLog.line("(IE|LockDMs) ⚠️ modal onResume: " + t.getMessage()); }
         // Reflect status at startup (the gate only runs when the inbox opens, so mark it hooked
@@ -276,15 +278,22 @@ public class LockDirectMessagesHook {
         unlock.setLayoutParams(btnLp);
 
         final Runnable attempt = () -> {
-            if (hashPass(code.getText().toString()).equals(FeatureFlags.lockDirectPasscode)) {
-                if (wholeApp) appUnlockedThisSession = true; else unlockedThisSession = true;
-                hideKeyboard(a, code);
-                content.removeView(overlay);
-            } else {
-                code.setText("");
-                error.setText("Wrong passcode");
-                error.setVisibility(View.VISIBLE);
-            }
+            if (!unlock.isEnabled()) return; // a check is already running
+            unlock.setEnabled(false);
+            verifyPassAsync(code.getText().toString(), ok -> {
+                unlock.setEnabled(true);
+                if (ok) {
+                    if (wholeApp) appUnlockedThisSession = true; else unlockedThisSession = true;
+                    hideKeyboard(a, code);
+                    content.removeView(overlay);
+                } else {
+                    code.setText("");
+                    long wait = lockoutRemainingMs();
+                    error.setText(wait > 0 ? "Too many attempts. Try again in " + ((wait + 999) / 1000) + "s"
+                            : "Wrong passcode");
+                    error.setVisibility(View.VISIBLE);
+                }
+            });
         };
         unlock.setOnClickListener(v -> attempt.run());
         // Keyboard "Done" also submits — so the unlock never depends on a button the keyboard hides.
@@ -320,7 +329,9 @@ public class LockDirectMessagesHook {
         }
     }
 
-    /** True when the device has biometric hardware with something enrolled. */
+    /** True when the device has biometric hardware with something enrolled.
+     *  Runs in Instagram's process, which holds USE_BIOMETRIC itself. */
+    @SuppressLint("MissingPermission")
     private static boolean canAuthenticate(Activity a) {
         try {
             if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) return false;
@@ -341,6 +352,7 @@ public class LockDirectMessagesHook {
     }
 
     /** Shows the system biometric prompt; runs onSuccess on the UI thread when auth succeeds. */
+    @SuppressLint("MissingPermission") // Instagram's USE_BIOMETRIC applies (hooked process)
     private static void promptBiometric(Activity a, Runnable onSuccess) {
         try {
             // Use plain literals — our module's R.string ids aren't in Instagram's resource table,
@@ -374,30 +386,95 @@ public class LockDirectMessagesHook {
         } catch (Throwable ignored) {}
     }
 
-    /** SHA-256 hex of the input. */
-    public static String sha256(String s) {
-        try {
-            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
-            byte[] d = md.digest(s.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : d) sb.append(String.format("%02x", b));
-            return sb.toString();
-        } catch (Throwable t) { return s; }
+    private static final int MAX_FAILED_ATTEMPTS = 5;
+    private static final long LOCKOUT_MS = 30_000;
+    private static int failedAttempts;          // only touched on VERIFY_EXECUTOR
+    private static volatile long lockedUntilMs;
+    // PBKDF2 takes tens to hundreds of ms: never run it on Instagram's UI thread.
+    private static final java.util.concurrent.ExecutorService VERIFY_EXECUTOR =
+            java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "InstaEclipse-Lock");
+                t.setDaemon(true);
+                return t;
+            });
+    private static final android.os.Handler MAIN = new android.os.Handler(android.os.Looper.getMainLooper());
+
+    /** Remaining lockout after too many wrong passcodes, in ms (0 = may try). */
+    public static long lockoutRemainingMs() {
+        return Math.max(0, lockedUntilMs - android.os.SystemClock.elapsedRealtime());
     }
 
-    /** Salted hash of a passcode: sha256(salt + passcode). Legacy passcodes have salt="" so
-     *  sha256(""+pass) == sha256(pass) and keep verifying without a forced reset. */
-    public static String hashPass(String passcode) {
-        String salt = FeatureFlags.lockDirectSalt == null ? "" : FeatureFlags.lockDirectSalt;
-        return sha256(salt + passcode);
+    /**
+     * Stores a new passcode: fresh salt + PBKDF2 hash computed on the verify thread, then
+     * {@code onDone} runs on the main thread (callers persist the flags there).
+     */
+    public static void setNewPassAsync(String passcode, Runnable onDone) {
+        VERIFY_EXECUTOR.execute(() -> {
+            String salt = randomSalt();
+            String hash = PasscodeHasher.hash(passcode, salt);
+            MAIN.post(() -> {
+                FeatureFlags.lockDirectSalt = salt;
+                FeatureFlags.lockDirectPasscode = hash;
+                onDone.run();
+            });
+        });
     }
 
-    /** Generate + store a fresh random salt (call right before hashing a NEW passcode). */
-    public static void newSalt() {
+    /** Verifies {@code input} off the UI thread and delivers the result on the main thread. */
+    public static void verifyPassAsync(String input, java.util.function.Consumer<Boolean> onResult) {
+        VERIFY_EXECUTOR.execute(() -> {
+            boolean ok;
+            try {
+                ok = verifyPass(input);
+            } catch (Throwable t) {
+                ok = false;
+            }
+            final boolean result = ok;
+            MAIN.post(() -> onResult.accept(result));
+        });
+    }
+
+    /**
+     * Checks {@code input} against the stored passcode, with a short lockout after repeated
+     * failures. Legacy SHA-256 hashes are transparently re-hashed with PBKDF2 on success.
+     * Blocking (PBKDF2); call through {@link #verifyPassAsync} from UI code.
+     */
+    private static boolean verifyPass(String input) {
+        if (lockoutRemainingMs() > 0) return false;
+        String stored = FeatureFlags.lockDirectPasscode;
+        boolean ok = PasscodeHasher.verify(input, FeatureFlags.lockDirectSalt, stored);
+        if (!ok) {
+            if (++failedAttempts >= MAX_FAILED_ATTEMPTS) {
+                failedAttempts = 0;
+                lockedUntilMs = android.os.SystemClock.elapsedRealtime() + LOCKOUT_MS;
+            }
+            return false;
+        }
+        failedAttempts = 0;
+        if (PasscodeHasher.needsUpgrade(stored)) {
+            try {
+                // Hash here (slow), publish on the main thread where the flags are read.
+                String salt = randomSalt();
+                String hash = PasscodeHasher.hash(input, salt);
+                MAIN.post(() -> {
+                    if (!stored.equals(FeatureFlags.lockDirectPasscode)) return; // changed meanwhile
+                    FeatureFlags.lockDirectSalt = salt;
+                    FeatureFlags.lockDirectPasscode = hash;
+                    SettingsManager.saveAllFlags();
+                });
+            } catch (Throwable t) {
+                ModuleLog.line("(InstaEclipse | Lock): passcode upgrade failed: " + t.getMessage());
+            }
+        }
+        return true;
+    }
+
+    /** Fresh random per-passcode salt (hex). */
+    private static String randomSalt() {
         byte[] b = new byte[16];
         new java.security.SecureRandom().nextBytes(b);
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder(32);
         for (byte x : b) sb.append(String.format("%02x", x));
-        FeatureFlags.lockDirectSalt = sb.toString();
+        return sb.toString();
     }
 }

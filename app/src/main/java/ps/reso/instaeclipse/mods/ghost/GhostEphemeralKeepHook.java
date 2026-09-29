@@ -1,6 +1,6 @@
 package ps.reso.instaeclipse.mods.ghost;
 
-import org.luckypray.dexkit.DexKitBridge;
+import ps.reso.instaeclipse.utils.core.LazyDexKit;
 import org.luckypray.dexkit.query.FindMethod;
 import org.luckypray.dexkit.query.matchers.MethodMatcher;
 import org.luckypray.dexkit.result.MethodData;
@@ -9,8 +9,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.List;
 
-import de.robv.android.xposed.XC_MethodHook;
-import de.robv.android.xposed.XposedBridge;
+import ps.reso.instaeclipse.hook.MethodHook;
+import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.Xposed.Module;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
@@ -31,7 +31,7 @@ import ps.reso.instaeclipse.utils.log.ModuleLog;
  */
 public class GhostEphemeralKeepHook {
 
-    public void install(DexKitBridge bridge, ClassLoader classLoader) {
+    public void install(LazyDexKit bridge, ClassLoader classLoader) {
         hookVanishLocalDelete(bridge, classLoader);
         hookServerPing(bridge);
         hookExpiryParser(bridge, classLoader);
@@ -41,8 +41,8 @@ public class GhostEphemeralKeepHook {
      * No-ops the method that deletes ephemeral/vanish messages from the local thread model.
      * Found via "igThreadIgid" combined with (DirectThreadKey, boolean) → void signature.
      */
-    private void hookVanishLocalDelete(DexKitBridge bridge, ClassLoader classLoader) {
-        XC_MethodHook hook = new XC_MethodHook() {
+    private void hookVanishLocalDelete(LazyDexKit bridge, ClassLoader classLoader) {
+        MethodHook hook = new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (FeatureFlags.keepEphemeralMessages) param.setResult(null);
@@ -52,7 +52,7 @@ public class GhostEphemeralKeepHook {
         if (DexKitCache.isCacheValid()) {
             Method cached = DexKitCache.loadMethod("Ephemeral_vanish", classLoader);
             if (cached != null) {
-                XposedBridge.hookMethod(cached, hook);
+                HookBridge.hookMethod(cached, hook);
                 FeatureStatusTracker.setHooked("KeepEphemeralMessages");
                 return;
             }
@@ -69,7 +69,7 @@ public class GhostEphemeralKeepHook {
                 try {
                     Method m = md.getMethodInstance(classLoader);
                     DexKitCache.saveMethod("Ephemeral_vanish", m);
-                    XposedBridge.hookMethod(m, hook);
+                    HookBridge.hookMethod(m, hook);
                     ModuleLog.line("(IE|Ephemeral) ✅ vanish-local-delete hook → "
                             + md.getClassName() + "." + md.getName());
                     FeatureStatusTracker.setHooked("KeepEphemeralMessages");
@@ -83,8 +83,8 @@ public class GhostEphemeralKeepHook {
     }
 
     /** Blocks any void method that dispatches mark_ephemeral_item_ranges_viewed. */
-    private void hookServerPing(DexKitBridge bridge) {
-        XC_MethodHook hook = new XC_MethodHook() {
+    private void hookServerPing(LazyDexKit bridge) {
+        MethodHook hook = new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 if (FeatureFlags.keepEphemeralMessages) param.setResult(null);
@@ -93,7 +93,7 @@ public class GhostEphemeralKeepHook {
 
         if (DexKitCache.isCacheValid()) {
             Method cached = DexKitCache.loadMethod("Ephemeral_ping", Module.hostClassLoader);
-            if (cached != null) { XposedBridge.hookMethod(cached, hook); return; }
+            if (cached != null) { HookBridge.hookMethod(cached, hook); return; }
         }
 
         try {
@@ -111,7 +111,7 @@ public class GhostEphemeralKeepHook {
                 if (method.getReturnType() != void.class) continue;
 
                 DexKitCache.saveMethod("Ephemeral_ping", method);
-                XposedBridge.hookMethod(method, hook);
+                HookBridge.hookMethod(method, hook);
                 ModuleLog.line("(IE|Ephemeral) ✅ server-ping hook → "
                         + md.getClassName() + "." + md.getName());
                 return;
@@ -126,8 +126,8 @@ public class GhostEphemeralKeepHook {
      * Zeroes any long field on parsed model objects whose value looks like a future
      * epoch-ms timestamp, so the local expiry countdown never starts.
      */
-    private void hookExpiryParser(DexKitBridge bridge, ClassLoader classLoader) {
-        XC_MethodHook hook = new XC_MethodHook() {
+    private void hookExpiryParser(LazyDexKit bridge, ClassLoader classLoader) {
+        MethodHook hook = new MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
                 if (!FeatureFlags.keepEphemeralMessages) return;
@@ -140,7 +140,7 @@ public class GhostEphemeralKeepHook {
         if (DexKitCache.isCacheValid()) {
             List<Method> cached = DexKitCache.loadMethods("Ephemeral_expiry", classLoader);
             if (cached != null && !cached.isEmpty()) {
-                for (Method m : cached) XposedBridge.hookMethod(m, hook);
+                for (Method m : cached) HookBridge.hookMethod(m, hook);
                 return;
             }
         }
@@ -154,7 +154,7 @@ public class GhostEphemeralKeepHook {
             for (MethodData md : methods) {
                 try {
                     Method m = md.getMethodInstance(classLoader);
-                    XposedBridge.hookMethod(m, hook);
+                    HookBridge.hookMethod(m, hook);
                     hooked.add(m);
                     ModuleLog.line("(IE|Ephemeral) ✅ expiry-parser hook → "
                             + md.getClassName() + "." + md.getName());
