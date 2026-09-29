@@ -7,7 +7,7 @@ import java.lang.reflect.Member;
 import io.github.libxposed.api.XposedInterface;
 
 /**
- * Before/after hook callback on top of libxposed's interceptor chain (API 101).
+ * Before/after hook callback on top of libxposed's interceptor chain (API 101+).
  *
  * <p>Keeps the semantics every hook in this code base was written against:
  * <ul>

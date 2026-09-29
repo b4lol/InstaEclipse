@@ -241,7 +241,7 @@ Download the latest InstaEclipse APK from [**Releases**](https://github.com/ReSo
 
 ### Rooted, with LSPosed
 
-> Needs a framework with libxposed API 101 support, such as [Vector](https://github.com/JingMatrix/Vector/releases/latest) (JingMatrix's continuation of LSPosed).
+> Needs a framework with libxposed API 101 or newer (the module targets API 102), such as [Vector](https://github.com/JingMatrix/Vector/releases/latest) (JingMatrix's continuation of LSPosed).
 
 1. **Install InstaEclipse.** Open the APK you downloaded and install it.
 2. **Enable the module.** Open LSPosed Manager, go to Modules, find InstaEclipse, enable it, and scope it to Instagram.
@@ -253,7 +253,7 @@ Download the latest InstaEclipse APK from [**Releases**](https://github.com/ReSo
 
 ### No root, with LSPatch
 
-> Needs a current [JingMatrix LSPatch](https://github.com/JingMatrix/LSPatch/releases/latest) build (it embeds Vector and supports libxposed API 101).
+> Needs a current [JingMatrix LSPatch](https://github.com/JingMatrix/LSPatch/releases/latest) build (it embeds Vector and supports libxposed API 101+).
 
 1. **Install InstaEclipse.** Open the APK and install it.
 2. **Install LSPatch** (the JingMatrix fork).

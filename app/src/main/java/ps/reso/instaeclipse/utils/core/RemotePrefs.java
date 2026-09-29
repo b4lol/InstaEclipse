@@ -10,7 +10,7 @@ import ps.reso.instaeclipse.utils.log.ModuleLog;
 /**
  * Framework-backed preferences shared between the companion app (writer) and the module
  * running inside Instagram (read-only). Replaces the legacy XSharedPreferences +
- * world-readable prefs file trick, which doesn't exist in libxposed API 101.
+ * world-readable prefs file trick, which doesn't exist in libxposed API 101+.
  *
  * <p>Only what the module needs on a cold start, before any sync broadcast could reach it,
  * lives here: the SAF download folder.

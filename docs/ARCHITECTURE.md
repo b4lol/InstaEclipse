@@ -4,7 +4,7 @@ InstaEclipse ships as a single APK that plays two roles.
 
 ```
 ┌──────────────────────── Instagram process (IG uid) ────────────────────────┐
-│  Xposed/Module (libxposed XposedModule, API 101)                           │
+│  Xposed/Module (libxposed XposedModule, API 102, loads on 101+)            │
 │    ├─ hook/*                → before/after hook layer on the interceptor chain│
 │    ├─ DexKit + DexKitCache  → locate obfuscated IG classes/methods         │
 │    ├─ mods/*                → feature hooks (ghost, ads, media, ui, …)     │
@@ -27,7 +27,7 @@ InstaEclipse ships as a single APK that plays two roles.
 | Package | Role | Runs in |
 |---------|------|---------|
 | `Xposed/` | Entry point (`META-INF/xposed/java_init.list`), hook registration, sync receiver | Instagram |
-| `hook/` | Hook layer over libxposed API 101: `MethodHook` (with `isActive()` fast path), `HookBridge`, `HookHelpers`, `HostApp`, `ModuleResources`, `ViewAttachDispatcher` (shared `onAttachedToWindow` hook) | Instagram |
+| `hook/` | Hook layer over libxposed API 101+: `MethodHook` (with `isActive()` fast path), `HookBridge`, `HookHelpers`, `HostApp`, `ModuleResources`, `ViewAttachDispatcher` (shared `onAttachedToWindow` hook) | Instagram |
 | `mods/ads`, `mods/ghost`, `mods/feed`, `mods/misc`, `mods/network`, `mods/devops` | Feature hooks | Instagram |
 | `mods/media` | Download hooks (Instagram) and `DownloadSaveService` (companion) | both |
 | `mods/ui` | UI hooks, theme engine, DM lock, custom fonts | Instagram |
@@ -99,10 +99,12 @@ exceptions thrown by a callback. Behaviour is covered by `MethodHookTest`.
 
 ## Build
 
-- AGP 8.13, Gradle 8.13, Java 17 toolchain, `compileSdk`/`targetSdk` 36, `minSdk` 28.
+- AGP 9.4, Gradle 9.8, Java 17 toolchain, `compileSdk` 37, `targetSdk` 36, `minSdk` 28.
 - Versions live in `gradle/libs.versions.toml`.
-- `compileOnly io.github.libxposed:api:101.0.1` provides the Xposed API (the framework supplies
-  it at runtime); `io.github.libxposed:service:101.0.0` is bundled for the companion side.
+- `compileOnly io.github.libxposed:api:102.0.0` provides the Xposed API (the framework supplies
+  it at runtime); `io.github.libxposed:service:102.0.0` is bundled for the companion side.
+  `module.prop` declares `minApiVersion=101` / `targetApiVersion=102`: API 102 calls must be
+  guarded by a framework version check, which the `io.github.libxposed:lint` checks enforce.
 - R8 is off (`minifyEnabled false`): hooks rely on reflection and stable class names.
 
 ```bash

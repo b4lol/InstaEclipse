@@ -69,7 +69,7 @@ import ps.reso.instaeclipse.utils.log.ModuleLog;
 
 
 /**
- * Module entry point for the modern libxposed API (API 101), registered in
+ * Module entry point for the modern libxposed API (targets API 102, loads on 101+), registered in
  * {@code META-INF/xposed/java_init.list}. The framework creates one instance per hooked process.
  */
 @SuppressLint("UnsafeDynamicallyLoadedCode")

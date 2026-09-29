@@ -56,6 +56,15 @@ All notable changes to this project are documented here. Format based on
   card.
 - Version `0.7.0-test.2` (versionCode 18).
 
+### Changed — Toolchain
+- libxposed API and service 102.0.0 (`targetApiVersion=102`). `minApiVersion` stays 101, so
+  frameworks that only support API 101 still load the module; no API 102 call is made yet.
+  Added the libxposed annotations and lint checks, which flag API 102 calls without a
+  framework version check.
+- AGP 9.4.1 and Gradle 9.8.0 (wrapper with a pinned SHA-256); `compileSdk` 37, required by
+  libxposed service 102. `targetSdk` stays 36.
+- `app/build.gradle` uses Groovy assignment syntax (`prop = value`), required before Gradle 10.
+
 ### Changed — Xposed API
 - **Migrated from the legacy Xposed API (82) to the modern libxposed API 101.** The module now
   needs a framework with API 101 support (e.g. Vector, current JingMatrix LSPatch); frameworks

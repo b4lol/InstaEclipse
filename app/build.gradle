@@ -3,33 +3,33 @@ plugins {
 }
 
 android {
-    namespace 'ps.reso.instaeclipse'
-    compileSdk 36
+    namespace = 'ps.reso.instaeclipse'
+    compileSdk = 37
 
     defaultConfig {
-        applicationId "ps.reso.instaeclipse"
-        minSdk 28
-        targetSdk 36
-        versionCode 18
-        versionName '0.7.0-test.2'
+        applicationId = "ps.reso.instaeclipse"
+        minSdk = 28
+        targetSdk = 36
+        versionCode = 18
+        versionName = '0.7.0-test.2'
 
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled = false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 
     buildFeatures {
-        buildConfig true
+        buildConfig = true
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     testOptions {
@@ -39,7 +39,7 @@ android {
 
     packaging {
         jniLibs {
-            useLegacyPackaging true
+            useLegacyPackaging = true
         }
     }
 }
@@ -60,8 +60,12 @@ dependencies {
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core
 
-    // Modern Xposed API (libxposed, API 101). The framework provides it at runtime.
+    // Modern Xposed API (libxposed, API 102). The framework provides it at runtime.
     compileOnly libs.libxposed.api
+    // @SinceApi / @InternalApi markers used by the API, and the lint checks that flag API 102
+    // calls made without a framework version check (the module still loads on API 101).
+    compileOnly libs.libxposed.annotation
+    lintChecks libs.libxposed.lint
     // Lets the companion app talk to the framework (remote preferences shared with the module).
     implementation libs.libxposed.service
 }

@@ -11,7 +11,7 @@ import java.util.Set;
 import io.github.libxposed.api.XposedInterface;
 
 /**
- * Entry point for installing hooks through the libxposed API 101 framework interface.
+ * Entry point for installing hooks through the libxposed (API 101+) framework interface.
  * {@link ps.reso.instaeclipse.Xposed.Module} attaches the framework once per process.
  */
 public final class HookBridge {
