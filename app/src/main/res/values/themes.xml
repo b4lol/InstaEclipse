@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- 0.7: fixed, branded dark scheme (no Dynamic Colors) so the companion app carries the same
-         identity as the in-IG dialog sheet regardless of the device wallpaper. -->
-    <style name="Theme.InstaEclipse" parent="Theme.Material3.Dark.NoActionBar">
+    <!-- Material 3 Expressive, dark. MainActivity layers the wallpaper palette (Dynamic Colors) on
+         top on Android 12+, matching the in-Instagram sheet; the indigo roles below are the
+         fallback on older releases. -->
+    <style name="Theme.InstaEclipse" parent="Theme.Material3Expressive.Dark.NoActionBar">
         <!-- System bars: dark surfaces need light (white) icons, so the *light bar* flags stay false. -->
         <item name="android:statusBarColor">@color/ie_surface</item>
         <item name="android:navigationBarColor">@color/ie_surface_container</item>

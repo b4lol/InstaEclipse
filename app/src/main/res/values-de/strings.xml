@@ -498,4 +498,31 @@
     <string name="ig_dialog_clean_feed_following_only">Nur abonnierte Konten im Feed</string>
     <string name="ig_dialog_misc_open_links_externally">Links im externen Browser öffnen</string>
     <string name="ig_caption_copy_no_hashtags">Ohne Hashtags kopieren</string>
+    <string name="ig_dialog_menu_extras">Extras</string>
+    <string name="ig_dialog_extras_airplane_mode">Flugmodus (offline erscheinen)</string>
+    <string name="ig_dialog_extras_story_exact_time">Story-Uhrzeit anzeigen</string>
+    <string name="ig_dialog_extras_reels_no_tap_pause">Tippen zum Pausieren in Reels aus</string>
+    <string name="ig_dialog_extras_reels_auto_scroll">Reels-Autoscroll-Option</string>
+    <string name="ig_dialog_extras_reels_lock_scroll">Reels-Scrollen sperren</string>
+    <string name="ig_dialog_extras_no_swipe_camera">Wischen zur Kamera aus</string>
+    <string name="ig_dialog_extras_hide_sharesheet_group">Gruppenerstellung im Teilen-Menü ausblenden</string>
+    <string name="ig_dialog_extras_unlimited_accounts">Unbegrenzte Konten</string>
+    <string name="ig_dialog_extras_startup_tab">Starttab</string>
+    <string name="ig_dialog_extras_share_domain">Eigene Teilen-Domain</string>
+    <string name="ig_dialog_extras_share_domain_off">Aus</string>
+    <string name="ig_dialog_extras_share_domain_hint">Ersetzt instagram.com in kopierten oder geteilten Links, z. B. für Einbettungsvorschauen. Leer lassen zum Ausschalten.</string>
+    <string name="ig_dialog_extras_share_domain_invalid">Ungültige Domain</string>
+    <string name="ig_tab_default">Instagram-Standard</string>
+    <string name="ig_tab_feed">Startseite</string>
+    <string name="ig_tab_reels">Reels</string>
+    <string name="ig_tab_direct">Nachrichten</string>
+    <string name="ig_tab_search">Suche</string>
+    <string name="ig_tab_profile">Profil</string>
+    <string name="ig_tab_notifications">Mitteilungen</string>
+    <string name="ig_dialog_active_count" formatted="false">%d Funktionen aktiv</string>
+    <string name="loc_picker_locating">Ort wird gesucht…</string>
+    <string name="loc_picker_unnamed">Unbenannter Ort</string>
+    <string name="ig_dialog_location_current_title">Aktueller Standort</string>
+    <string name="ig_dialog_location_recent">Zuletzt verwendet</string>
+    <string name="ig_dialog_location_applied">Standort übernommen</string>
 </resources>

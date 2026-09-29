@@ -117,8 +117,11 @@ public class HomeFragment extends Fragment {
         if (installedPackages.isEmpty()) {
             instagramStatusText.setText(getString(R.string.not_installed_instagram));
             instagramStatusText.setTypeface(null, android.graphics.Typeface.BOLD);
-            instagramStatusCard.setCardBackgroundColor(getResources().getColor(R.color.dark_red));
+            instagramStatusCard.setCardBackgroundColor(com.google.android.material.color.MaterialColors.getColor(instagramStatusCard, com.google.android.material.R.attr.colorErrorContainer));
             instagramLogo.setImageResource(R.drawable.ic_cancel);
+            int onError = com.google.android.material.color.MaterialColors.getColor(instagramStatusCard, com.google.android.material.R.attr.colorOnErrorContainer);
+            instagramStatusText.setTextColor(onError);
+            instagramLogo.setImageTintList(android.content.res.ColorStateList.valueOf(onError));
             launchInstagramButton.setEnabled(false);
             return;
         }
@@ -128,7 +131,7 @@ public class HomeFragment extends Fragment {
                 ? CommonUtils.IG_PACKAGE_NAME
                 : installedPackages.get(0);
 
-        instagramStatusCard.setCardBackgroundColor(getResources().getColor(R.color.green));
+        instagramStatusCard.setCardBackgroundColor(com.google.android.material.color.MaterialColors.getColor(instagramStatusCard, com.google.android.material.R.attr.colorPrimaryContainer));
         instagramLogo.setImageResource(R.drawable.ic_instagram_logo);
         instagramVariantText.setVisibility(View.VISIBLE);
 

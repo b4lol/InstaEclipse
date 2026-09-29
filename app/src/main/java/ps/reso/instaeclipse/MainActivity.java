@@ -23,8 +23,6 @@ public class MainActivity extends AppCompatActivity {
     @SuppressLint("NonConstantResourceId")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        // NOTE: intentionally NOT applying DynamicColors — 0.7 ships a fixed branded dark palette
-        // (see Theme.InstaEclipse); adopting the wallpaper palette here would override the brand.
         super.onCreate(savedInstanceState);
         Logging.init(this, "instaeclipse_companion.log");
         VersionCheckUtility.checkForUpdates(this);
@@ -78,6 +76,8 @@ public class MainActivity extends AppCompatActivity {
             }
 
             if (selectedFragment != null) {
+                selectedFragment.setEnterTransition(new com.google.android.material.transition.MaterialFadeThrough());
+                selectedFragment.setExitTransition(new com.google.android.material.transition.MaterialFadeThrough());
                 getSupportFragmentManager()
                         .beginTransaction()
                         .replace(R.id.fragment_container, selectedFragment)

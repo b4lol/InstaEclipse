@@ -10,6 +10,8 @@ public class InstaEclipseApp extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        // Wallpaper palette for every companion screen (Android 12+), matching the in-Instagram sheet.
+        com.google.android.material.color.DynamicColors.applyToActivitiesIfAvailable(this);
         // The framework hands us its service binder through libxposed's XposedProvider.
         RemotePrefs.init(this);
     }

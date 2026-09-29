@@ -494,4 +494,31 @@
     <string name="ig_dialog_clean_feed_following_only">Feed solo de seguidos</string>
     <string name="ig_dialog_misc_open_links_externally">Abrir enlaces en navegador externo</string>
     <string name="ig_caption_copy_no_hashtags">Copiar sin hashtags</string>
+    <string name="ig_dialog_menu_extras">Extras</string>
+    <string name="ig_dialog_extras_airplane_mode">Modo avión (aparecer desconectado)</string>
+    <string name="ig_dialog_extras_story_exact_time">Mostrar hora de publicación de historias</string>
+    <string name="ig_dialog_extras_reels_no_tap_pause">Desactivar tocar para pausar en Reels</string>
+    <string name="ig_dialog_extras_reels_auto_scroll">Opción de desplazamiento automático en Reels</string>
+    <string name="ig_dialog_extras_reels_lock_scroll">Bloquear desplazamiento de Reels</string>
+    <string name="ig_dialog_extras_no_swipe_camera">Desactivar deslizar a la cámara</string>
+    <string name="ig_dialog_extras_hide_sharesheet_group">Ocultar creación de grupo al compartir</string>
+    <string name="ig_dialog_extras_unlimited_accounts">Cuentas ilimitadas</string>
+    <string name="ig_dialog_extras_startup_tab">Pestaña de inicio</string>
+    <string name="ig_dialog_extras_share_domain">Dominio para compartir</string>
+    <string name="ig_dialog_extras_share_domain_off">Desactivado</string>
+    <string name="ig_dialog_extras_share_domain_hint">Reemplaza instagram.com en los enlaces que copias o compartes, p. ej. para vistas previas. Déjalo vacío para desactivarlo.</string>
+    <string name="ig_dialog_extras_share_domain_invalid">Dominio no válido</string>
+    <string name="ig_tab_default">Predeterminado de Instagram</string>
+    <string name="ig_tab_feed">Inicio</string>
+    <string name="ig_tab_reels">Reels</string>
+    <string name="ig_tab_direct">Mensajes</string>
+    <string name="ig_tab_search">Buscar</string>
+    <string name="ig_tab_profile">Perfil</string>
+    <string name="ig_tab_notifications">Notificaciones</string>
+    <string name="ig_dialog_active_count" formatted="false">%d funciones activas</string>
+    <string name="loc_picker_locating">Buscando lugar…</string>
+    <string name="loc_picker_unnamed">Lugar sin nombre</string>
+    <string name="ig_dialog_location_current_title">Ubicación actual</string>
+    <string name="ig_dialog_location_recent">Lugares recientes</string>
+    <string name="ig_dialog_location_applied">Ubicación aplicada</string>
 </resources>

@@ -22,7 +22,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
             app:cardBackgroundColor="?attr/colorPrimaryContainer"
-            app:cardCornerRadius="20dp"
+            app:cardCornerRadius="28dp"
             app:cardElevation="0dp"
             app:strokeWidth="0dp">
 
@@ -117,7 +117,7 @@
             android:textSize="15sp"
             app:icon="@drawable/ic_instagram_logo"
             app:iconGravity="textStart"
-            app:cornerRadius="16dp" />
+            app:cornerRadius="26dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/download_instagram_button"
@@ -130,7 +130,7 @@
             style="@style/Widget.Material3.Button.TonalButton"
             app:icon="@drawable/ic_download"
             app:iconGravity="textStart"
-            app:cornerRadius="16dp" />
+            app:cornerRadius="26dp" />
 
         <!-- How to Use Card -->
         <com.google.android.material.card.MaterialCardView
@@ -139,7 +139,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
             app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
-            app:cardCornerRadius="20dp"
+            app:cardCornerRadius="28dp"
             app:cardElevation="0dp"
             app:strokeWidth="0dp">
 
@@ -189,7 +189,7 @@
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
             app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
-            app:cardCornerRadius="20dp"
+            app:cardCornerRadius="28dp"
             app:cardElevation="0dp"
             app:strokeWidth="0dp">
 
@@ -233,7 +233,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:cardBackgroundColor="?attr/colorSurfaceContainerLow"
-            app:cardCornerRadius="20dp"
+            app:cardCornerRadius="28dp"
             app:cardElevation="0dp"
             app:strokeWidth="0dp">
 

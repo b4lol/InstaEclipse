@@ -58,6 +58,7 @@ import ps.reso.instaeclipse.utils.core.IpcSecurity;
 import ps.reso.instaeclipse.utils.core.RemotePrefs;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.mods.location.LocationPickerActivity;
+import ps.reso.instaeclipse.mods.location.LocationPresets;
 import ps.reso.instaeclipse.ui.theme.ThemeCustomizerActivity;
 
 public class FeaturesFragment extends Fragment {
@@ -309,6 +310,8 @@ public class FeaturesFragment extends Fragment {
 
         public int segmentPosition;
         public int segmentSize;
+        /** Nav rows: feature keys counted into the "on" badge. */
+        public String[] badgeKeys;
     }
 
     static class HeaderViewHolder extends RecyclerView.ViewHolder {
@@ -324,8 +327,12 @@ public class FeaturesFragment extends Fragment {
         ImageView ivIcon;
         MaterialSwitch swToggle;
         MaterialCardView cardView;
+        TextView tvBadge;
+        ImageView ivChevron;
         ItemViewHolder(View v) {
             super(v);
+            tvBadge = v.findViewById(R.id.tv_badge);
+            ivChevron = v.findViewById(R.id.iv_chevron);
             tvTitle = v.findViewById(R.id.tv_title);
             ivIcon = v.findViewById(R.id.iv_icon);
             swToggle = v.findViewById(R.id.sw_toggle);
@@ -376,7 +383,8 @@ public class FeaturesFragment extends Fragment {
             if (item.type == FeatureItem.TYPE_SPACER) return;
 
             if (holder instanceof HeaderViewHolder) {
-                ((HeaderViewHolder) holder).tvHeader.setText(item.title);
+                // Sentence-case header; some translations end the label with a colon.
+                ((HeaderViewHolder) holder).tvHeader.setText(item.title.replaceAll("\\s*:\\s*$", ""));
             } else if (holder instanceof ItemViewHolder) {
                 ItemViewHolder itemHolder = (ItemViewHolder) holder;
 
@@ -400,7 +408,7 @@ public class FeaturesFragment extends Fragment {
                 }
 
                 float largeRadius = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24f, getResources().getDisplayMetrics());
-                float smallRadius = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4f, getResources().getDisplayMetrics());
+                float smallRadius = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 6f, getResources().getDisplayMetrics());
 
                 ShapeAppearanceModel.Builder shapeBuilder = itemHolder.cardView.getShapeAppearanceModel().toBuilder();
 
@@ -434,6 +442,24 @@ public class FeaturesFragment extends Fragment {
 
                 itemHolder.swToggle.setOnCheckedChangeListener(null);
                 itemHolder.itemView.setOnClickListener(null);
+
+                // Nav rows (onClick opens a submenu) get a chevron and an optional "on" count badge.
+                boolean isNav = item.type == FeatureItem.TYPE_CLICKABLE && item.textColor == 0;
+                itemHolder.ivChevron.setVisibility(isNav ? View.VISIBLE : View.GONE);
+                int onCount = 0;
+                if (item.badgeKeys != null) {
+                    for (String k : item.badgeKeys) if (getCurrentState(k)) onCount++;
+                }
+                if (onCount > 0) {
+                    itemHolder.tvBadge.setText(String.valueOf(onCount));
+                    android.graphics.drawable.GradientDrawable badgeBg = new android.graphics.drawable.GradientDrawable();
+                    badgeBg.setColor(MaterialColors.getColor(itemHolder.itemView, com.google.android.material.R.attr.colorPrimaryContainer));
+                    badgeBg.setCornerRadius(1000f);
+                    itemHolder.tvBadge.setBackground(badgeBg);
+                    itemHolder.tvBadge.setVisibility(View.VISIBLE);
+                } else {
+                    itemHolder.tvBadge.setVisibility(View.GONE);
+                }
 
                 if (item.type == FeatureItem.TYPE_CLICKABLE) {
                     itemHolder.swToggle.setVisibility(View.GONE);
@@ -552,7 +578,7 @@ public class FeaturesFragment extends Fragment {
             }
             android.graphics.drawable.GradientDrawable chipBg = new android.graphics.drawable.GradientDrawable();
             chipBg.setColor((accentColor & 0x00FFFFFF) | 0x33000000);
-            chipBg.setCornerRadius(iconView.getResources().getDisplayMetrics().density * 10);
+            chipBg.setCornerRadius(1000f); // round Expressive icon container
             iconView.setBackground(chipBg);
         }
     }
@@ -606,6 +632,11 @@ public class FeaturesFragment extends Fragment {
                 .setDuration(250)
                 .setInterpolator(new DecelerateInterpolator())
                 .start();
+    }
+
+    private FeatureItem withBadge(FeatureItem item, String... keys) {
+        item.badgeKeys = keys;
+        return item;
     }
 
     private FeatureItem createNav(String title, Runnable navAction) {
@@ -700,30 +731,31 @@ public class FeaturesFragment extends Fragment {
 
         defs.add(getString(R.string.feat_group_appearance));
         defs.add(Arrays.asList(
-                createNav(R.drawable.ic_palette, A_APPEARANCE, getString(R.string.ig_dialog_menu_theme), this::loadThemeMenu),
+                withBadge(createNav(R.drawable.ic_palette, A_APPEARANCE, getString(R.string.ig_dialog_menu_theme), this::loadThemeMenu), "customThemeEnabled", "customFontEnabled", "customEmojiEnabled"),
                 createNav(R.drawable.ic_movie, A_APPEARANCE, getString(R.string.ig_dialog_menu_quality), this::loadQualityMenu),
-                createNav(R.drawable.ic_sparkle, A_APPEARANCE, getString(R.string.ig_dialog_menu_clean_feed), this::loadCleanFeedMenu)
+                withBadge(createNav(R.drawable.ic_sparkle, A_APPEARANCE, getString(R.string.ig_dialog_menu_clean_feed), this::loadCleanFeedMenu), "hideSuggestionsInFeed", "hideThreadsSuggestions", "followingOnlyFeed")
         ));
 
         defs.add(getString(R.string.feat_group_privacy));
         defs.add(Arrays.asList(
-                createNav(R.drawable.ic_eye, A_PRIVACY, getString(R.string.ig_dialog_menu_ghost_settings), this::loadGhostMenu),
-                createNav(R.drawable.ic_shield, A_PRIVACY, getString(R.string.ig_dialog_misc_lock_section), this::loadLockMenu),
-                createNav(R.drawable.ic_eye_off, A_PRIVACY, getString(R.string.ig_hide_chats_title), this::loadHideChatsMenu),
-                createNav(R.drawable.ic_block, A_PRIVACY, getString(R.string.ig_dialog_menu_ad_analytics), this::loadAdsMenu),
-                createNav(R.drawable.ic_notification, A_PRIVACY, getString(R.string.ig_dialog_menu_distraction_free), this::loadDistractionMenu)
+                withBadge(createNav(R.drawable.ic_eye, A_PRIVACY, getString(R.string.ig_dialog_menu_ghost_settings), this::loadGhostMenu), "isGhostSeen", "isGhostTyping", "isGhostScreenshot", "isGhostViewOnce", "isGhostStory", "isGhostLive", "allowScreenshots", "keepEphemeralMessages", "permanentViewMode", "keepUnsentMessages"),
+                withBadge(createNav(R.drawable.ic_shield, A_PRIVACY, getString(R.string.ig_dialog_misc_lock_section), this::loadLockMenu), "lockDirectMessages", "lockWholeApp"),
+                withBadge(createNav(R.drawable.ic_eye_off, A_PRIVACY, getString(R.string.ig_hide_chats_title), this::loadHideChatsMenu), "hideSpecificChats"),
+                withBadge(createNav(R.drawable.ic_block, A_PRIVACY, getString(R.string.ig_dialog_menu_ad_analytics), this::loadAdsMenu), "isAdBlockEnabled", "isAnalyticsBlocked", "disableTrackingLinks"),
+                withBadge(createNav(R.drawable.ic_notification, A_PRIVACY, getString(R.string.ig_dialog_menu_distraction_free), this::loadDistractionMenu), "disableStories", "disableFeed", "disableReels", "disableExplore", "disableComments")
         ));
 
         defs.add(getString(R.string.feat_group_media));
         defs.add(Arrays.asList(
-                createNav(R.drawable.ic_download, A_MEDIA, getString(R.string.ig_dialog_menu_downloader), this::loadDownloaderMenu),
-                createNav(R.drawable.ic_pin, A_MEDIA, getString(R.string.ig_dialog_menu_location), this::loadLocationMenu)
+                withBadge(createNav(R.drawable.ic_download, A_MEDIA, getString(R.string.ig_dialog_menu_downloader), this::loadDownloaderMenu), "enablePostDownload", "enableStoryDownload", "enableReelDownload", "enableProfileDownload"),
+                withBadge(createNav(R.drawable.ic_pin, A_MEDIA, getString(R.string.ig_dialog_menu_location), this::loadLocationMenu), "spoofLocation")
         ));
 
         defs.add(getString(R.string.feat_group_tools));
         defs.add(Arrays.asList(
-                createNav(R.drawable.ic_settings_gear, A_TOOLS, getString(R.string.ig_dialog_menu_misc), this::loadMiscMenu),
-                createNav(R.drawable.ic_tune, A_TOOLS, getString(R.string.ig_dialog_menu_dev_options), this::loadDevMenu),
+                withBadge(createNav(R.drawable.ic_settings_gear, A_TOOLS, getString(R.string.ig_dialog_menu_misc), this::loadMiscMenu), "disableStoryFlipping", "disableVideoAutoPlay", "disableRepost", "showFeatureToasts", "showFollowerToast", "enableStoryMentions", "disableDiscoverPeople", "enableCopyComment", "disableDoubleTapLike", "enableCaptionCopy", "enablePhotoZoom", "spoofLastSeen", "removeMetaAI", "openLinksExternally"),
+                withBadge(createNav(R.drawable.ic_features, A_TOOLS, getString(R.string.ig_dialog_menu_extras), this::loadExtrasMenu), "airplaneMode", "storyExactTime", "reelsDisableTapPause", "reelsAutoScroll", "reelsLockScroll", "disableSwipeToCamera", "hideShareSheetGroup", "unlimitedAccounts"),
+                withBadge(createNav(R.drawable.ic_tune, A_TOOLS, getString(R.string.ig_dialog_menu_dev_options), this::loadDevMenu), "isDevEnabled"),
                 createClickable(R.drawable.ic_save, A_TOOLS, getString(R.string.ig_dialog_backup_settings), this::backupSettings),
                 createClickable(R.drawable.ic_folder, A_TOOLS, getString(R.string.ig_dialog_restore_settings), this::restoreSettings),
                 createClickable(R.drawable.ic_restart, A_TOOLS, getString(R.string.ig_dialog_menu_restart), this::restartInstagram),
@@ -924,6 +956,26 @@ public class FeaturesFragment extends Fragment {
         currentMenu = "misc";
     }
 
+    /** Extras. The startup tab and share domain are set from inside Instagram. */
+    private void loadExtrasMenu() {
+        List<Object> defs = new ArrayList<>();
+
+        defs.add(getString(R.string.feat_features));
+        defs.add(Arrays.asList(
+                createSwitch(R.drawable.ic_block, "#30D158", getString(R.string.ig_dialog_extras_airplane_mode), "airplaneMode"),
+                createSwitch(R.drawable.ic_timer, "#30D158", getString(R.string.ig_dialog_extras_story_exact_time), "storyExactTime"),
+                createSwitch(R.drawable.ic_movie, "#30D158", getString(R.string.ig_dialog_extras_reels_no_tap_pause), "reelsDisableTapPause"),
+                createSwitch(R.drawable.ic_movie, "#30D158", getString(R.string.ig_dialog_extras_reels_auto_scroll), "reelsAutoScroll"),
+                createSwitch(R.drawable.ic_movie, "#30D158", getString(R.string.ig_dialog_extras_reels_lock_scroll), "reelsLockScroll"),
+                createSwitch(R.drawable.ic_camera, "#30D158", getString(R.string.ig_dialog_extras_no_swipe_camera), "disableSwipeToCamera"),
+                createSwitch(R.drawable.ic_chat, "#30D158", getString(R.string.ig_dialog_extras_hide_sharesheet_group), "hideShareSheetGroup"),
+                createSwitch(R.drawable.ic_shield, "#30D158", getString(R.string.ig_dialog_extras_unlimited_accounts), "unlimitedAccounts")
+        ));
+
+        showMenu(getString(R.string.ig_dialog_menu_extras), defs);
+        currentMenu = "extras";
+    }
+
     /** Lock (Privacy). Companion app only toggles the persisted flags — the passcode itself is set
      *  from inside Instagram (the module has no passcode field here). */
     private void loadLockMenu() {
@@ -967,21 +1019,32 @@ public class FeaturesFragment extends Fragment {
         double lat = 0.0, lng = 0.0;
         try { lat = Double.parseDouble(localCache.getString("spoofLat", "0")); } catch (Throwable ignored) {}
         try { lng = Double.parseDouble(localCache.getString("spoofLng", "0")); } catch (Throwable ignored) {}
-        String coordLabel = (lat == 0.0 && lng == 0.0)
-                ? getString(R.string.ig_dialog_location_unset)
-                : getString(R.string.ig_dialog_location_current, lat, lng);
+        String label = localCache.getString("spoofLabel", "");
+        String place = !LocationPresets.valid(lat, lng) ? getString(R.string.ig_dialog_location_unset)
+                : !label.isEmpty() ? label : LocationPresets.coords(lat, lng);
 
-        defs.add(getString(R.string.feat_options));
-        defs.add(Arrays.asList(createClickable(R.drawable.ic_pin, "#FFD60A",
-                getString(R.string.ig_dialog_location_pick) + " — " + coordLabel, () -> {
-                    double curLat = 0.0, curLng = 0.0;
-                    try { curLat = Double.parseDouble(localCache.getString("spoofLat", "0")); } catch (Throwable ignored) {}
-                    try { curLng = Double.parseDouble(localCache.getString("spoofLng", "0")); } catch (Throwable ignored) {}
-                    Intent i = new Intent(requireContext(), LocationPickerActivity.class);
-                    i.putExtra(LocationPickerActivity.EXTRA_LAT, curLat);
-                    i.putExtra(LocationPickerActivity.EXTRA_LNG, curLng);
-                    locationPickerLauncher.launch(i);
-                })));
+        final double curLat = lat, curLng = lng;
+        defs.add(getString(R.string.ig_dialog_location_current_title));
+        defs.add(Arrays.asList(createNav(R.drawable.ic_search, "#FFD60A", place, () -> {
+            Intent i = new Intent(requireContext(), LocationPickerActivity.class);
+            i.putExtra(LocationPickerActivity.EXTRA_LAT, curLat);
+            i.putExtra(LocationPickerActivity.EXTRA_LNG, curLng);
+            locationPickerLauncher.launch(i);
+        })));
+
+        List<LocationPresets.Preset> recent = LocationPresets.parse(localCache.getString("spoofRecent", ""));
+        if (!recent.isEmpty()) {
+            List<FeatureItem> rows = new ArrayList<>();
+            for (LocationPresets.Preset p : recent) {
+                rows.add(createNav(R.drawable.ic_timer, "#FFD60A", p.title(), () -> {
+                    LocationPresets.applyFromCompanion(requireContext(), p);
+                    Toast.makeText(requireContext(), R.string.ig_dialog_location_applied, Toast.LENGTH_SHORT).show();
+                    loadLocationMenu();
+                }));
+            }
+            defs.add(getString(R.string.ig_dialog_location_recent));
+            defs.add(rows);
+        }
 
         showMenu(getString(R.string.ig_dialog_section_location), defs);
         currentMenu = "location";

@@ -490,4 +490,31 @@
     <string name="ig_dialog_clean_feed_following_only">Yalnızca Takip Edilenler Akışı</string>
     <string name="ig_dialog_misc_open_links_externally">Bağlantıları Harici Tarayıcıda Aç</string>
     <string name="ig_caption_copy_no_hashtags">Hashtag Olmadan Kopyala</string>
+    <string name="ig_dialog_menu_extras">Ek Özellikler</string>
+    <string name="ig_dialog_extras_airplane_mode">Uçak Modu (çevrimdışı görün)</string>
+    <string name="ig_dialog_extras_story_exact_time">Hikâye Paylaşım Saatini Göster</string>
+    <string name="ig_dialog_extras_reels_no_tap_pause">Reels\'te Dokunarak Durdurmayı Kapat</string>
+    <string name="ig_dialog_extras_reels_auto_scroll">Reels Otomatik Kaydırma Seçeneği</string>
+    <string name="ig_dialog_extras_reels_lock_scroll">Reels Kaydırmayı Kilitle</string>
+    <string name="ig_dialog_extras_no_swipe_camera">Kameraya Kaydırmayı Kapat</string>
+    <string name="ig_dialog_extras_hide_sharesheet_group">Paylaşım Sayfasında Grup Oluşturmayı Gizle</string>
+    <string name="ig_dialog_extras_unlimited_accounts">Sınırsız Hesap</string>
+    <string name="ig_dialog_extras_startup_tab">Başlangıç Sekmesi</string>
+    <string name="ig_dialog_extras_share_domain">Özel Paylaşım Domain\'i</string>
+    <string name="ig_dialog_extras_share_domain_off">Kapalı</string>
+    <string name="ig_dialog_extras_share_domain_hint">Kopyaladığın veya paylaştığın linklerde instagram.com\'u değiştirir (ör. gömülü önizleme için). Kapatmak için boş bırak.</string>
+    <string name="ig_dialog_extras_share_domain_invalid">Geçersiz domain</string>
+    <string name="ig_tab_default">Instagram varsayılanı</string>
+    <string name="ig_tab_feed">Ana Sayfa</string>
+    <string name="ig_tab_reels">Reels</string>
+    <string name="ig_tab_direct">Mesajlar</string>
+    <string name="ig_tab_search">Ara</string>
+    <string name="ig_tab_profile">Profil</string>
+    <string name="ig_tab_notifications">Bildirimler</string>
+    <string name="ig_dialog_active_count" formatted="false">%d özellik açık</string>
+    <string name="loc_picker_locating">Yer aranıyor…</string>
+    <string name="loc_picker_unnamed">Adsız konum</string>
+    <string name="ig_dialog_location_current_title">Geçerli konum</string>
+    <string name="ig_dialog_location_recent">Son konumlar</string>
+    <string name="ig_dialog_location_applied">Konum uygulandı</string>
 </resources>

@@ -5,6 +5,57 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+### Added
+- **Following-only feed** (Clean Feed): the home feed only shows accounts you follow, by
+  forcing the feed request's `pagination_source` to `following`.
+- **Open links in external browser**: links open in the default browser instead of
+  Instagram's in-app browser; `l.instagram.com` redirects are unwrapped. Meta's own domains
+  (login, Accounts Center, payments) stay in-app.
+- **Copy without hashtags**: extra button in the caption copy dialog, shown only when the
+  caption has hashtags.
+- New **Extras** section, with features found by reviewing JTInstagram's patch points and
+  re-located on Instagram 447:
+  - **Airplane mode**: keeps Instagram's realtime connection (MQTT) down, so you appear
+    offline, no typing / seen events are sent live and in-app calls don't ring; the feed and
+    browsing keep working. Toggling applies immediately.
+  - **Story posting time** in the story header, e.g. "14:32 · 3h".
+  - **Reels**: disable tap-to-pause, unlock Instagram's own auto-scroll option, lock
+    scrolling.
+  - **Disable swipe to camera** on the home feed.
+  - **Hide group creation in the share sheet** when several recipients are selected.
+  - **Unlimited accounts** in the account switcher.
+  - **Startup tab**: open Instagram on Home, Reels, Messages, Search, Profile or
+    Notifications.
+  - **Custom share domain**: replaces `instagram.com` in copied / shared links (e.g. for
+    embed previews).
+- "Disable double-tap to like" now also covers comments and DMs; a reaction picked from the
+  long-press menu still works.
+- `ROADMAP.md`: plan for a gradual Java/Kotlin hybrid migration.
+
+### Changed — Location spoofing
+- Every location delivery path is spoofed: platform `LocationManager` listeners,
+  `getCurrentLocation`, PendingIntent updates and Play Services' fused provider. Previously
+  only the first update was replaced and later real GPS updates reached Instagram.
+- Instagram no longer needs the real location permission: while spoofing, location
+  permission checks report "granted" and are answered with the spoofed position, so the
+  real one never reaches the app.
+- Fixes land a few meters around the chosen point with a varying accuracy; the mock-location
+  flags read false.
+- Map picker: multiple search results, pasted "lat, lng" coordinates, the place name under
+  the pin, and recently used places as chips.
+- Both settings screens show the place name and apply a recent place with one tap.
+
+### Changed — UI (Material 3 Expressive)
+- Both the in-Instagram settings sheet and the companion app follow the wallpaper colors
+  (Dynamic Colors) on Android 12+, with the indigo palette as the fallback.
+- In-Instagram sheet: segmented rows, redrawn M3 switches and radio buttons, a badge with
+  the number of enabled features per section, a status chip, and pages that slide in place
+  instead of closing and reopening the sheet.
+- Companion app: Material 3 Expressive theme, fade-through tab transitions, round icon
+  containers, per-section badges, chevrons, switch check icons and a tonal Instagram status
+  card.
+- Version `0.7.0-test.2` (versionCode 18).
+
 ### Changed — Xposed API
 - **Migrated from the legacy Xposed API (82) to the modern libxposed API 101.** The module now
   needs a framework with API 101 support (e.g. Vector, current JingMatrix LSPatch); frameworks
@@ -31,6 +82,9 @@ All notable changes to this project are documented here. Format based on
 - Passcode hashing runs off the UI thread.
 
 ### Fixed
+- Location spoofing no longer sends 0,0 when it is enabled but no place has been picked.
+- The in-Instagram sheet was cut to about half the screen after the device had been rotated
+  to landscape in another app; its height now comes from Instagram's own window.
 - First launch after installing/updating Instagram no longer ANRs on Android 16 ("failed to
   complete startup"): DexKit discovery runs in the background when the cache is cold or
   incomplete. Found on-device with Instagram 447.0.0.21.81.

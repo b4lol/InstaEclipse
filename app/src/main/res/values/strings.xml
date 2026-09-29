@@ -541,4 +541,31 @@
     <string name="ig_dialog_clean_feed_following_only">Following-only Feed</string>
     <string name="ig_dialog_misc_open_links_externally">Open Links in External Browser</string>
     <string name="ig_caption_copy_no_hashtags">Copy without Hashtags</string>
+    <string name="ig_dialog_menu_extras">Extras</string>
+    <string name="ig_dialog_extras_airplane_mode">Airplane Mode (appear offline)</string>
+    <string name="ig_dialog_extras_story_exact_time">Show Story Posting Time</string>
+    <string name="ig_dialog_extras_reels_no_tap_pause">Disable Tap to Pause Reels</string>
+    <string name="ig_dialog_extras_reels_auto_scroll">Reels Auto-Scroll Option</string>
+    <string name="ig_dialog_extras_reels_lock_scroll">Lock Reels Scrolling</string>
+    <string name="ig_dialog_extras_no_swipe_camera">Disable Swipe to Camera</string>
+    <string name="ig_dialog_extras_hide_sharesheet_group">Hide Group Creation in Share Sheet</string>
+    <string name="ig_dialog_extras_unlimited_accounts">Unlimited Accounts</string>
+    <string name="ig_dialog_extras_startup_tab">Startup Tab</string>
+    <string name="ig_dialog_extras_share_domain">Custom Share Domain</string>
+    <string name="ig_dialog_extras_share_domain_off">Off</string>
+    <string name="ig_dialog_extras_share_domain_hint">Replaces instagram.com in links you copy or share, e.g. for embed previews. Leave empty to turn off.</string>
+    <string name="ig_dialog_extras_share_domain_invalid">Invalid domain</string>
+    <string name="ig_tab_default">Instagram default</string>
+    <string name="ig_tab_feed">Home</string>
+    <string name="ig_tab_reels">Reels</string>
+    <string name="ig_tab_direct">Messages</string>
+    <string name="ig_tab_search">Search</string>
+    <string name="ig_tab_profile">Profile</string>
+    <string name="ig_tab_notifications">Notifications</string>
+    <string name="ig_dialog_active_count" formatted="false">%d features on</string>
+    <string name="loc_picker_locating">Finding place…</string>
+    <string name="loc_picker_unnamed">Unnamed place</string>
+    <string name="ig_dialog_location_current_title">Current location</string>
+    <string name="ig_dialog_location_recent">Recent places</string>
+    <string name="ig_dialog_location_applied">Location applied</string>
 </resources>

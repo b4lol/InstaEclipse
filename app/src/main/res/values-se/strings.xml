@@ -489,4 +489,31 @@
     <string name="ig_dialog_clean_feed_following_only">Flöde endast från följda</string>
     <string name="ig_dialog_misc_open_links_externally">Öppna länkar i extern webbläsare</string>
     <string name="ig_caption_copy_no_hashtags">Kopiera utan hashtaggar</string>
+    <string name="ig_dialog_menu_extras">Extra</string>
+    <string name="ig_dialog_extras_airplane_mode">Flygläge (visa som offline)</string>
+    <string name="ig_dialog_extras_story_exact_time">Visa storyns publiceringstid</string>
+    <string name="ig_dialog_extras_reels_no_tap_pause">Stäng av tryck för paus i Reels</string>
+    <string name="ig_dialog_extras_reels_auto_scroll">Alternativ för automatisk rullning i Reels</string>
+    <string name="ig_dialog_extras_reels_lock_scroll">Lås rullning i Reels</string>
+    <string name="ig_dialog_extras_no_swipe_camera">Stäng av svep till kameran</string>
+    <string name="ig_dialog_extras_hide_sharesheet_group">Dölj gruppskapande vid delning</string>
+    <string name="ig_dialog_extras_unlimited_accounts">Obegränsat antal konton</string>
+    <string name="ig_dialog_extras_startup_tab">Startflik</string>
+    <string name="ig_dialog_extras_share_domain">Egen delningsdomän</string>
+    <string name="ig_dialog_extras_share_domain_off">Av</string>
+    <string name="ig_dialog_extras_share_domain_hint">Ersätter instagram.com i länkar du kopierar eller delar. Lämna tomt för att stänga av.</string>
+    <string name="ig_dialog_extras_share_domain_invalid">Ogiltig domän</string>
+    <string name="ig_tab_default">Instagrams standard</string>
+    <string name="ig_tab_feed">Hem</string>
+    <string name="ig_tab_reels">Reels</string>
+    <string name="ig_tab_direct">Meddelanden</string>
+    <string name="ig_tab_search">Sök</string>
+    <string name="ig_tab_profile">Profil</string>
+    <string name="ig_tab_notifications">Aviseringar</string>
+    <string name="ig_dialog_active_count" formatted="false">%d funktioner på</string>
+    <string name="loc_picker_locating">Söker plats…</string>
+    <string name="loc_picker_unnamed">Namnlös plats</string>
+    <string name="ig_dialog_location_current_title">Aktuell plats</string>
+    <string name="ig_dialog_location_recent">Senaste platser</string>
+    <string name="ig_dialog_location_applied">Platsen har tillämpats</string>
 </resources>

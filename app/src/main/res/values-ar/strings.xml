@@ -488,4 +488,31 @@
     <string name="ig_dialog_clean_feed_following_only">خلاصة المتابَعين فقط</string>
     <string name="ig_dialog_misc_open_links_externally">فتح الروابط في متصفح خارجي</string>
     <string name="ig_caption_copy_no_hashtags">نسخ بدون وسوم</string>
+    <string name="ig_dialog_menu_extras">إضافات</string>
+    <string name="ig_dialog_extras_airplane_mode">وضع الطيران (الظهور غير متصل)</string>
+    <string name="ig_dialog_extras_story_exact_time">إظهار وقت نشر القصة</string>
+    <string name="ig_dialog_extras_reels_no_tap_pause">تعطيل الإيقاف باللمس في Reels</string>
+    <string name="ig_dialog_extras_reels_auto_scroll">خيار التمرير التلقائي في Reels</string>
+    <string name="ig_dialog_extras_reels_lock_scroll">قفل تمرير Reels</string>
+    <string name="ig_dialog_extras_no_swipe_camera">تعطيل السحب إلى الكاميرا</string>
+    <string name="ig_dialog_extras_hide_sharesheet_group">إخفاء إنشاء مجموعة عند المشاركة</string>
+    <string name="ig_dialog_extras_unlimited_accounts">حسابات غير محدودة</string>
+    <string name="ig_dialog_extras_startup_tab">علامة التبويب عند البدء</string>
+    <string name="ig_dialog_extras_share_domain">نطاق مشاركة مخصص</string>
+    <string name="ig_dialog_extras_share_domain_off">متوقف</string>
+    <string name="ig_dialog_extras_share_domain_hint">يستبدل instagram.com في الروابط التي تنسخها أو تشاركها. اتركه فارغًا لإيقافه.</string>
+    <string name="ig_dialog_extras_share_domain_invalid">نطاق غير صالح</string>
+    <string name="ig_tab_default">افتراضي Instagram</string>
+    <string name="ig_tab_feed">الرئيسية</string>
+    <string name="ig_tab_reels">Reels</string>
+    <string name="ig_tab_direct">الرسائل</string>
+    <string name="ig_tab_search">البحث</string>
+    <string name="ig_tab_profile">الملف الشخصي</string>
+    <string name="ig_tab_notifications">الإشعارات</string>
+    <string name="ig_dialog_active_count" formatted="false">%d ميزة مفعّلة</string>
+    <string name="loc_picker_locating">جارٍ البحث عن المكان…</string>
+    <string name="loc_picker_unnamed">مكان بلا اسم</string>
+    <string name="ig_dialog_location_current_title">الموقع الحالي</string>
+    <string name="ig_dialog_location_recent">الأماكن الأخيرة</string>
+    <string name="ig_dialog_location_applied">تم تطبيق الموقع</string>
 </resources>

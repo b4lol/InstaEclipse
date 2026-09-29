@@ -490,4 +490,31 @@
     <string name="ig_dialog_clean_feed_following_only">Лента только подписок</string>
     <string name="ig_dialog_misc_open_links_externally">Открывать ссылки во внешнем браузере</string>
     <string name="ig_caption_copy_no_hashtags">Копировать без хештегов</string>
+    <string name="ig_dialog_menu_extras">Дополнительно</string>
+    <string name="ig_dialog_extras_airplane_mode">Режим полёта (быть не в сети)</string>
+    <string name="ig_dialog_extras_story_exact_time">Показывать время публикации историй</string>
+    <string name="ig_dialog_extras_reels_no_tap_pause">Отключить паузу касанием в Reels</string>
+    <string name="ig_dialog_extras_reels_auto_scroll">Опция автопрокрутки Reels</string>
+    <string name="ig_dialog_extras_reels_lock_scroll">Заблокировать прокрутку Reels</string>
+    <string name="ig_dialog_extras_no_swipe_camera">Отключить свайп к камере</string>
+    <string name="ig_dialog_extras_hide_sharesheet_group">Скрыть создание группы при отправке</string>
+    <string name="ig_dialog_extras_unlimited_accounts">Неограниченно аккаунтов</string>
+    <string name="ig_dialog_extras_startup_tab">Стартовая вкладка</string>
+    <string name="ig_dialog_extras_share_domain">Свой домен для ссылок</string>
+    <string name="ig_dialog_extras_share_domain_off">Выкл.</string>
+    <string name="ig_dialog_extras_share_domain_hint">Заменяет instagram.com в копируемых и отправляемых ссылках, например для превью. Оставьте пустым, чтобы отключить.</string>
+    <string name="ig_dialog_extras_share_domain_invalid">Неверный домен</string>
+    <string name="ig_tab_default">По умолчанию Instagram</string>
+    <string name="ig_tab_feed">Главная</string>
+    <string name="ig_tab_reels">Reels</string>
+    <string name="ig_tab_direct">Сообщения</string>
+    <string name="ig_tab_search">Поиск</string>
+    <string name="ig_tab_profile">Профиль</string>
+    <string name="ig_tab_notifications">Уведомления</string>
+    <string name="ig_dialog_active_count" formatted="false">Включено функций: %d</string>
+    <string name="loc_picker_locating">Поиск места…</string>
+    <string name="loc_picker_unnamed">Место без названия</string>
+    <string name="ig_dialog_location_current_title">Текущее местоположение</string>
+    <string name="ig_dialog_location_recent">Недавние места</string>
+    <string name="ig_dialog_location_applied">Местоположение применено</string>
 </resources>

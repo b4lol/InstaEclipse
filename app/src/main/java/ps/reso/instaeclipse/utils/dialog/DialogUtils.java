@@ -47,18 +47,28 @@ public class DialogUtils {
 
     private static AlertDialog currentDialog;
 
-    // ==== 0.7 DESIGN TOKENS ====
-    // One palette drives every dialog surface so the in-IG UI reads as a single, coherent sheet.
-    // Colors are ARGB ints (used directly with setColor/setTextColor — no parseColor round-trip).
-    private static final int C_SHEET    = 0xFF17171B; // bottom-sheet background (deep near-black)
-    private static final int C_CARD     = 0xFF202027; // grouped card fill (one step lighter)
-    private static final int C_PRESSED  = 0xFF2E2E37; // row pressed / highlight
-    private static final int C_HAIRLINE = 0xFF2C2C34; // dividers, borders
-    private static final int C_TEXT     = 0xFFFFFFFF; // primary text
-    private static final int C_TEXT2    = 0xFF9A9AA3; // secondary/muted text
-    private static final int C_HANDLE   = 0xFF48484A; // drag handle
-    private static final int C_DANGER   = 0xFFFF453A; // destructive accent (close, delete)
-    private static final int C_ACCENT   = 0xFF0A84FF; // primary/interactive accent (back, links)
+    // ==== DESIGN TOKENS (Material 3 Expressive) ====
+    // Roles come from ExpressiveKit's dark tonal palette — the system's wallpaper colors on
+    // Android 12+, an indigo fallback before that. applyPalette() refreshes them each time the
+    // sheet opens so a wallpaper change is picked up without restarting Instagram.
+    private static int C_SHEET, C_CARD, C_PRESSED, C_HAIRLINE, C_TEXT, C_TEXT2, C_HANDLE, C_DANGER, C_ACCENT;
+
+    static {
+        applyPalette();
+    }
+
+    private static void applyPalette() {
+        ExpressiveKit.refresh();
+        C_SHEET    = ExpressiveKit.surface;
+        C_CARD     = ExpressiveKit.surfaceContainer;
+        C_PRESSED  = ExpressiveKit.pressed;
+        C_HAIRLINE = ExpressiveKit.outlineVariant;
+        C_TEXT     = ExpressiveKit.onSurface;
+        C_TEXT2    = ExpressiveKit.onSurfaceVariant;
+        C_HANDLE   = ExpressiveKit.outline;
+        C_DANGER   = ExpressiveKit.error;
+        C_ACCENT   = ExpressiveKit.primary;
+    }
 
     /** Section accent palette — assigned per thematic group so each menu section has its own hue. */
     private static final String A_APPEARANCE = "#FF375F"; // vivid pink/red
@@ -72,57 +82,51 @@ public class DialogUtils {
     @SuppressLint("UseCompatLoadingForDrawables")
     public static void showEclipseOptionsDialog(Context context) {
         SettingsManager.init(context);
+        applyPalette();
 
-        LinearLayout outer = new LinearLayout(context);
-        outer.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout page = new LinearLayout(context);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.addView(createDragHandle(context));
 
-        GradientDrawable background = new GradientDrawable();
-        background.setColor(C_SHEET);
-        background.setCornerRadii(new float[]{48, 48, 48, 48, 0, 0, 0, 0});
-        outer.setBackground(background);
+        // Pinned header: large headline, subtitle and a live "N features on" status chip.
+        LinearLayout header = new LinearLayout(context);
+        header.setOrientation(LinearLayout.VERTICAL);
+        header.setPadding(dp(context, 24), dp(context, 4), dp(context, 24), dp(context, 14));
 
-        // Pinned header: drag handle + title + subtitle (stays visible while the list scrolls)
-        outer.addView(createDragHandle(context));
         TextView title = new TextView(context);
         title.setText(I18n.t(context, R.string.ig_dialog_title));
         title.setTextColor(C_TEXT);
-        title.setTextSize(24);
-        title.setTypeface(null, Typeface.BOLD);
-        title.setLetterSpacing(0.01f);
-        title.setGravity(Gravity.CENTER);
-        title.setPadding(40, 10, 40, 2);
-        outer.addView(title);
+        title.setTextSize(28);
+        title.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+        title.setLetterSpacing(-0.01f);
+        header.addView(title);
 
-        TextView subtitle = new TextView(context);
-        subtitle.setText(I18n.t(context, R.string.ig_dialog_subtitle));
-        subtitle.setTextColor(C_TEXT2);
-        subtitle.setTextSize(13);
-        subtitle.setGravity(Gravity.CENTER);
-        subtitle.setPadding(40, 0, 40, 18);
-        outer.addView(subtitle);
-        outer.addView(createDivider(context));
+        View chip = statusChip(context, countAll());
+        ((LinearLayout.LayoutParams) chip.getLayoutParams()).topMargin = dp(context, 10);
+        header.addView(chip);
+        page.addView(header);
 
-        // Scrollable middle: the feature category list + footer credit
         LinearLayout mainLayout = buildMainMenuLayout(context);
-        ScrollView scrollView = createScrollableContainer(context, mainLayout, 0.62f);
-        outer.addView(scrollView);
+        page.addView(createScrollableContainer(context, mainLayout, 0.6f));
 
-        // Pinned footer: Close button (always reachable without scrolling)
+        // Pinned footer: full-width tonal Close button, always reachable.
         TextView closeButton = new TextView(context);
         closeButton.setText(I18n.t(context, R.string.ig_dialog_close));
-        closeButton.setTextColor(C_DANGER);
+        closeButton.setTextColor(ExpressiveKit.onSecondaryContainer);
         closeButton.setTextSize(16);
-        closeButton.setPadding(40, 20, 40, 40);
+        closeButton.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         closeButton.setGravity(Gravity.CENTER);
-        closeButton.setTypeface(null, Typeface.BOLD);
-        StateListDrawable closeStates = new StateListDrawable();
-        closeStates.addState(new int[]{android.R.attr.state_pressed}, new ColorDrawable((C_DANGER & 0x00FFFFFF) | 0x20000000));
-        closeStates.addState(new int[]{}, new ColorDrawable(Color.TRANSPARENT));
-        closeButton.setBackground(closeStates);
+        closeButton.setBackground(new android.graphics.drawable.RippleDrawable(
+                ColorStateList.valueOf(ExpressiveKit.withAlpha(ExpressiveKit.onSecondaryContainer, 0x33)),
+                ExpressiveKit.pill(ExpressiveKit.secondaryContainer), ExpressiveKit.pill(Color.WHITE)));
+        LinearLayout.LayoutParams closeLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(context, 48));
+        closeLp.setMargins(dp(context, 16), dp(context, 10), dp(context, 16), dp(context, 16));
+        closeButton.setLayoutParams(closeLp);
         closeButton.setOnClickListener(v -> {
             if (currentDialog != null) { try { currentDialog.dismiss(); } catch (Exception ignored) {} currentDialog = null; }
         });
-        outer.addView(closeButton);
+        page.addView(closeButton);
 
         SettingsManager.saveAllFlags();
 
@@ -131,13 +135,104 @@ public class DialogUtils {
             GhostEmojiManager.addGhostEmojiNextToInbox(activity, GhostModeUtils.isGhostModeActive());
         }
 
-        if (currentDialog != null && currentDialog.isShowing()) {
-            try { currentDialog.dismiss(); } catch (Exception ignored) {}
-        }
-        currentDialog = null;
+        boolean back = navigatingBack;
+        navigatingBack = false;
+        presentSheet(context, page, !back);
+    }
 
-        currentDialog = createBottomSheetDialog(context, outer);
+    /** Set by a section's back button so the menu slides in from the left. */
+    private static boolean navigatingBack;
+
+    /** Root inside the current sheet dialog; pages are swapped in place with a shared-axis slide. */
+    private static android.widget.FrameLayout sheetHost;
+
+    private static void presentSheet(Context context, View page, boolean forward) {
+        if (currentDialog != null && currentDialog.isShowing() && sheetHost != null
+                && sheetHost.getContext() == context && sheetHost.getChildCount() > 0) {
+            View old = sheetHost.getChildAt(0);
+            float shift = ExpressiveKit.dp(context, 36) * (forward ? 1 : -1);
+            old.animate().alpha(0f).translationX(-shift).setDuration(90)
+                    .withEndAction(() -> sheetHost.removeView(old)).start();
+            page.setAlpha(0f);
+            page.setTranslationX(shift);
+            sheetHost.addView(page, pageParams());
+            page.animate().alpha(1f).translationX(0f).setStartDelay(60).setDuration(260)
+                    .setInterpolator(ExpressiveKit.EMPHASIZED).start();
+            return;
+        }
+        if (currentDialog != null) { try { currentDialog.dismiss(); } catch (Exception ignored) {} }
+
+        sheetHost = new android.widget.FrameLayout(context);
+        float r = ExpressiveKit.dp(context, 28);
+        sheetHost.setBackground(ExpressiveKit.shape(C_SHEET, ExpressiveKit.radii(r, r, 0, 0)));
+        sheetHost.setClipToOutline(true);
+        sheetHost.addView(page, pageParams());
+
+        android.widget.FrameLayout host = sheetHost;
+        currentDialog = createBottomSheetDialog(context, host);
+        // The old dialog's dismiss callback arrives later; only clear the host it belonged to.
+        currentDialog.setOnDismissListener(d -> { if (sheetHost == host) sheetHost = null; });
         currentDialog.show();
+    }
+
+    private static android.widget.FrameLayout.LayoutParams pageParams() {
+        return new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM);
+    }
+
+    /** Pill showing how many features are on, e.g. "● 24 on". */
+    private static View statusChip(Context context, int active) {
+        TextView chip = new TextView(context);
+        chip.setText("●  " + I18n.t(context, R.string.ig_dialog_active_count).replace("%d", String.valueOf(active)));
+        chip.setTextColor(ExpressiveKit.onPrimaryContainer);
+        chip.setTextSize(13);
+        chip.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        chip.setPadding(dp(context, 14), dp(context, 7), dp(context, 16), dp(context, 7));
+        chip.setBackground(ExpressiveKit.pill(ExpressiveKit.primaryContainer));
+        chip.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        return chip;
+    }
+
+    // Feature keys behind each main-menu row, for the "on" badges.
+    private static final String[] K_THEME = {"customThemeEnabled", "customFontEnabled", "customEmojiEnabled"};
+    private static final String[] K_QUALITY = {"forceReelQuality"};
+    private static final String[] K_CLEAN = {"hideSuggestionsInFeed", "hideThreadsSuggestions", "followingOnlyFeed"};
+    private static final String[] K_GHOST = {"isGhostSeen", "isGhostTyping", "isGhostScreenshot", "isGhostViewOnce",
+            "isGhostStory", "isGhostLive", "allowScreenshots", "keepEphemeralMessages", "permanentViewMode", "keepUnsentMessages"};
+    private static final String[] K_LOCK = {"lockDirectMessages", "lockWholeApp"};
+    private static final String[] K_HIDE = {"hideSpecificChats"};
+    private static final String[] K_ADS = {"isAdBlockEnabled", "isAnalyticsBlocked", "disableTrackingLinks"};
+    private static final String[] K_FOCUS = {"disableStories", "disableFeed", "disableReels", "disableExplore", "disableComments"};
+    private static final String[] K_DOWNLOAD = {"enablePostDownload", "enableStoryDownload", "enableReelDownload", "enableProfileDownload"};
+    private static final String[] K_LOCATION = {"spoofLocation"};
+    private static final String[] K_MISC = {"disableStoryFlipping", "disableVideoAutoPlay", "disableRepost", "showFeatureToasts",
+            "showFollowerToast", "enableStoryMentions", "disableDiscoverPeople", "enableCopyComment", "disableDoubleTapLike",
+            "enableCaptionCopy", "enablePhotoZoom", "spoofLastSeen", "removeMetaAI", "openLinksExternally"};
+    private static final String[] K_EXTRAS = {"airplaneMode", "storyExactTime", "reelsDisableTapPause", "reelsAutoScroll",
+            "reelsLockScroll", "disableSwipeToCamera", "hideShareSheetGroup", "unlimitedAccounts", "startupTab", "customShareDomain"};
+    private static final String[] K_DEV = {"isDevEnabled"};
+
+    /** Number of the given FeatureFlags that are on (true, non-empty text or non-zero number). */
+    private static int countOn(String... keys) {
+        int n = 0;
+        for (String k : keys) {
+            try {
+                Object v = FeatureFlags.class.getField(k).get(null);
+                if ((v instanceof Boolean b && b) || (v instanceof String str && !str.isEmpty())
+                        || (v instanceof Integer i && i != 0)) n++;
+            } catch (Throwable ignored) {
+                // key renamed/removed — just not counted
+            }
+        }
+        return n;
+    }
+
+    private static int countAll() {
+        int n = 0;
+        for (String[] k : new String[][]{K_THEME, K_QUALITY, K_CLEAN, K_GHOST, K_LOCK, K_HIDE, K_ADS, K_FOCUS,
+                K_DOWNLOAD, K_LOCATION, K_MISC, K_EXTRAS, K_DEV}) n += countOn(k);
+        return n;
     }
 
     public static void showSimpleDialog(Context context, String title, String message) {
@@ -153,38 +248,39 @@ public class DialogUtils {
     private static LinearLayout buildMainMenuLayout(Context context) {
         LinearLayout mainLayout = new LinearLayout(context);
         mainLayout.setOrientation(LinearLayout.VERTICAL);
-        mainLayout.setPadding(24, 0, 24, 0);
+        mainLayout.setPadding(dp(context, 16), 0, dp(context, 16), dp(context, 4));
 
         // ---- APPEARANCE ---- look & feel: theme, fonts/emoji (inside theme), quality, feed cleanup
         mainLayout.addView(sectionHeader(context, I18n.t(context, R.string.feat_group_appearance)));
         LinearLayout appearance = createGroupCard(context);
-        appearance.addView(createMenuRow(context, R.drawable.ic_palette, I18n.t(context, R.string.ig_dialog_menu_theme), A_APPEARANCE, () -> showThemeOptions(context)));
-        appearance.addView(createMenuRow(context, R.drawable.ic_movie, I18n.t(context, R.string.ig_dialog_menu_quality), A_APPEARANCE, () -> showQualityOptions(context)));
-        appearance.addView(createMenuRow(context, R.drawable.ic_sparkle, I18n.t(context, R.string.ig_dialog_menu_clean_feed), A_APPEARANCE, () -> showCleanFeedOptions(context)));
+        appearance.addView(createMenuRow(context, R.drawable.ic_palette, I18n.t(context, R.string.ig_dialog_menu_theme), A_APPEARANCE, () -> showThemeOptions(context), countOn(K_THEME)));
+        appearance.addView(createMenuRow(context, R.drawable.ic_movie, I18n.t(context, R.string.ig_dialog_menu_quality), A_APPEARANCE, () -> showQualityOptions(context), countOn(K_QUALITY)));
+        appearance.addView(createMenuRow(context, R.drawable.ic_sparkle, I18n.t(context, R.string.ig_dialog_menu_clean_feed), A_APPEARANCE, () -> showCleanFeedOptions(context), countOn(K_CLEAN)));
         mainLayout.addView(appearance);
 
         // ---- PRIVACY ---- ghost, lock, hidden chats, ad/analytics blocking, distraction-free
         mainLayout.addView(sectionHeader(context, I18n.t(context, R.string.feat_group_privacy)));
         LinearLayout privacy = createGroupCard(context);
-        privacy.addView(createMenuRow(context, R.drawable.ic_eye, I18n.t(context, R.string.ig_dialog_menu_ghost_settings), A_PRIVACY, () -> showGhostOptions(context)));
-        privacy.addView(createMenuRow(context, R.drawable.ic_shield, I18n.t(context, R.string.ig_dialog_misc_lock_section), A_PRIVACY, () -> showLockOptions(context)));
-        privacy.addView(createMenuRow(context, R.drawable.ic_eye_off, I18n.t(context, R.string.ig_hide_chats_title), A_PRIVACY, () -> showHideChatsOptions(context)));
-        privacy.addView(createMenuRow(context, R.drawable.ic_block, I18n.t(context, R.string.ig_dialog_menu_ad_analytics), A_PRIVACY, () -> showAdOptions(context)));
-        privacy.addView(createMenuRow(context, R.drawable.ic_notification, I18n.t(context, R.string.ig_dialog_menu_distraction_free), A_PRIVACY, () -> showDistractionOptions(context)));
+        privacy.addView(createMenuRow(context, R.drawable.ic_eye, I18n.t(context, R.string.ig_dialog_menu_ghost_settings), A_PRIVACY, () -> showGhostOptions(context), countOn(K_GHOST)));
+        privacy.addView(createMenuRow(context, R.drawable.ic_shield, I18n.t(context, R.string.ig_dialog_misc_lock_section), A_PRIVACY, () -> showLockOptions(context), countOn(K_LOCK)));
+        privacy.addView(createMenuRow(context, R.drawable.ic_eye_off, I18n.t(context, R.string.ig_hide_chats_title), A_PRIVACY, () -> showHideChatsOptions(context), countOn(K_HIDE)));
+        privacy.addView(createMenuRow(context, R.drawable.ic_block, I18n.t(context, R.string.ig_dialog_menu_ad_analytics), A_PRIVACY, () -> showAdOptions(context), countOn(K_ADS)));
+        privacy.addView(createMenuRow(context, R.drawable.ic_notification, I18n.t(context, R.string.ig_dialog_menu_distraction_free), A_PRIVACY, () -> showDistractionOptions(context), countOn(K_FOCUS)));
         mainLayout.addView(privacy);
 
         // ---- MEDIA ---- downloading, location spoofing
         mainLayout.addView(sectionHeader(context, I18n.t(context, R.string.feat_group_media)));
         LinearLayout media = createGroupCard(context);
-        media.addView(createMenuRow(context, R.drawable.ic_download, I18n.t(context, R.string.ig_dialog_menu_downloader), A_MEDIA, () -> showDownloaderOptions(context)));
-        media.addView(createMenuRow(context, R.drawable.ic_pin, I18n.t(context, R.string.ig_dialog_menu_location), A_MEDIA, () -> showLocationOptions(context)));
+        media.addView(createMenuRow(context, R.drawable.ic_download, I18n.t(context, R.string.ig_dialog_menu_downloader), A_MEDIA, () -> showDownloaderOptions(context), countOn(K_DOWNLOAD)));
+        media.addView(createMenuRow(context, R.drawable.ic_pin, I18n.t(context, R.string.ig_dialog_menu_location), A_MEDIA, () -> showLocationOptions(context), countOn(K_LOCATION)));
         mainLayout.addView(media);
 
         // ---- TOOLS ---- misc toggles, developer, backup, restart, cache, about
         mainLayout.addView(sectionHeader(context, I18n.t(context, R.string.feat_group_tools)));
         LinearLayout tools = createGroupCard(context);
-        tools.addView(createMenuRow(context, R.drawable.ic_settings_gear, I18n.t(context, R.string.ig_dialog_menu_misc), A_TOOLS, () -> showMiscOptions(context)));
-        tools.addView(createMenuRow(context, R.drawable.ic_tune, I18n.t(context, R.string.ig_dialog_menu_dev_options), A_TOOLS, () -> showDevOptions(context)));
+        tools.addView(createMenuRow(context, R.drawable.ic_settings_gear, I18n.t(context, R.string.ig_dialog_menu_misc), A_TOOLS, () -> showMiscOptions(context), countOn(K_MISC)));
+        tools.addView(createMenuRow(context, R.drawable.ic_features, I18n.t(context, R.string.ig_dialog_menu_extras), A_TOOLS, () -> showExtrasOptions(context), countOn(K_EXTRAS)));
+        tools.addView(createMenuRow(context, R.drawable.ic_tune, I18n.t(context, R.string.ig_dialog_menu_dev_options), A_TOOLS, () -> showDevOptions(context), countOn(K_DEV)));
         tools.addView(createMenuRow(context, R.drawable.ic_save, I18n.t(context, R.string.ig_dialog_menu_backup_restore), A_TOOLS, () -> showBackupRestoreOptions(context)));
         tools.addView(createMenuRow(context, R.drawable.ic_restart, I18n.t(context, R.string.ig_dialog_menu_restart), A_TOOLS, () -> showRestartSection(context)));
         tools.addView(createMenuRow(context, R.drawable.ic_delete, I18n.t(context, R.string.ig_dialog_clear_cache), A_TOOLS, () -> showClearCacheSection(context)));
@@ -197,51 +293,45 @@ public class DialogUtils {
         footer.setText("@reso7200");
         footer.setTextColor(C_TEXT2);
         footer.setTextSize(13);
-        footer.setPadding(16, 26, 16, 8);
+        footer.setPadding(16, dp(context, 18), 16, dp(context, 4));
         footer.setGravity(Gravity.CENTER_HORIZONTAL);
         mainLayout.addView(footer);
 
         return mainLayout;
     }
 
-    /** Settings-app style group header: uppercase, letter-spaced, muted. */
+    /** Expressive list header: primary-tinted title, sentence case. */
     private static TextView sectionHeader(Context context, String text) {
         TextView header = new TextView(context);
-        header.setText(text == null ? "" : text.toUpperCase(java.util.Locale.getDefault()));
-        header.setTextColor(C_TEXT2);
-        header.setTextSize(12);
-        header.setTypeface(null, Typeface.BOLD);
-        header.setLetterSpacing(0.08f);
-        header.setPadding(20, 22, 16, 10);
+        header.setText(text == null ? "" : text);
+        header.setTextColor(ExpressiveKit.primary);
+        header.setTextSize(14);
+        header.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        header.setPadding(dp(context, 16), dp(context, 20), dp(context, 16), dp(context, 8));
         return header;
     }
 
     private static LinearLayout createGroupCard(Context context) {
-        LinearLayout group = new LinearLayout(context);
-        group.setOrientation(LinearLayout.VERTICAL);
-        GradientDrawable groupBg = new GradientDrawable();
-        groupBg.setColor(C_CARD);
-        groupBg.setCornerRadius(R_CARD);
-        group.setBackground(groupBg);
-        group.setPadding(6, 6, 6, 6);
-        return group;
+        return new ExpressiveKit.SegmentedGroup(context);
     }
 
-    /** labelWithEmoji carries an emoji since it's shared with the companion app's plain-text
-     *  menu (which still wants it) — but here a real vector icon renders in the chip instead,
-     *  so the emoji is stripped. Translators place it on either side of the text (leading in
-     *  most locales, trailing in Arabic), so this strips from whichever end it's on rather than
-     *  assuming a fixed position. */
+    /** Navigation row: round tinted icon, label, optional "on" count badge and a chevron.
+     *  labelWithEmoji is shared with the companion app's plain-text menu, so an edge emoji is
+     *  stripped here (translators place it leading or trailing). */
     private static View createMenuRow(Context context, int iconRes, String labelWithEmoji, String accentHex, Runnable onClick) {
+        return createMenuRow(context, iconRes, labelWithEmoji, accentHex, onClick, 0);
+    }
+
+    private static View createMenuRow(Context context, int iconRes, String labelWithEmoji, String accentHex, Runnable onClick, int onCount) {
         String label = stripEdgeEmoji(labelWithEmoji);
 
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(context, 8), dp(context, 9), dp(context, 10), dp(context, 9));
+        row.setMinimumHeight(dp(context, 64));
+        row.setPadding(dp(context, 14), dp(context, 10), dp(context, 12), dp(context, 10));
         row.setClickable(true);
         row.setFocusable(true);
-        row.setBackground(rowRipple(context, 16));
 
         TextView labelView = new TextView(context);
         labelView.setText(label);
@@ -249,16 +339,34 @@ public class DialogUtils {
         labelView.setTextColor(C_TEXT);
         labelView.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
+        row.addView(buildIconChip(context, iconRes, accentHex));
+        row.addView(labelView);
+
+        if (onCount > 0) {
+            TextView badge = new TextView(context);
+            badge.setText(String.valueOf(onCount));
+            badge.setTextSize(12);
+            badge.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+            badge.setTextColor(ExpressiveKit.onPrimaryContainer);
+            badge.setGravity(Gravity.CENTER);
+            badge.setMinWidth(dp(context, 24));
+            badge.setPadding(dp(context, 8), dp(context, 2), dp(context, 8), dp(context, 2));
+            badge.setBackground(ExpressiveKit.pill(ExpressiveKit.primaryContainer));
+            LinearLayout.LayoutParams bLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            bLp.leftMargin = dp(context, 8);
+            badge.setLayoutParams(bLp);
+            row.addView(badge);
+        }
+
         android.widget.ImageView chevron = new android.widget.ImageView(context);
         Drawable chev = loadModuleIcon(R.drawable.ic_chevron_right, C_TEXT2);
         if (chev != null) chevron.setImageDrawable(chev);
         LinearLayout.LayoutParams chevLp = new LinearLayout.LayoutParams(dp(context, 20), dp(context, 20));
-        chevLp.rightMargin = dp(context, 4);
+        chevLp.leftMargin = dp(context, 6);
         chevron.setLayoutParams(chevLp);
-
-        row.addView(buildIconChip(context, iconRes, accentHex));
-        row.addView(labelView);
         row.addView(chevron);
+
         row.setOnClickListener(v -> onClick.run());
         return row;
     }
@@ -383,53 +491,36 @@ public class DialogUtils {
 
 
     private static View createDivider(Context context) {
-        // Low-key spacer rather than a hard hairline — the grouped cards already delimit content,
-        // so loose full-width rules between them looked dated. Kept as a small transparent gap.
+        // Transparent gap between blocks; segmented groups already delimit their rows.
         View divider = new View(context);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(context, 8));
-        divider.setLayoutParams(params);
-        divider.setBackgroundColor(Color.TRANSPARENT);
+        divider.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(context, 8)));
+        divider.setTag(ExpressiveKit.TAG_SKIP);
         return divider;
     }
 
-    /** Thin inset hairline for separating rows *inside* a grouped card (e.g. radio lists). */
+    /** Legacy in-card separator; hidden inside segmented groups, whose gaps separate rows. */
     private static View createHairline(Context context) {
         View line = new View(context);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1);
-        params.setMargins(dp(context, 14), 0, dp(context, 14), 0);
+        params.setMargins(dp(context, 16), 0, dp(context, 16), 0);
         line.setLayoutParams(params);
         line.setBackgroundColor(C_HAIRLINE);
+        line.setTag(ExpressiveKit.TAG_SKIP);
         return line;
     }
 
-    /** Rounded ripple for any tappable row; falls back to a pressed-state drawable if unavailable. */
+    /** Rounded ripple for tappable rows outside a segmented group. */
     private static Drawable rowRipple(Context ctx, int cornerPx) {
-        try {
-            GradientDrawable mask = new GradientDrawable();
-            mask.setColor(Color.WHITE);
-            mask.setCornerRadius(cornerPx);
-            return new android.graphics.drawable.RippleDrawable(
-                    android.content.res.ColorStateList.valueOf(C_PRESSED), null, mask);
-        } catch (Throwable t) {
-            StateListDrawable sld = new StateListDrawable();
-            sld.addState(new int[]{android.R.attr.state_pressed}, roundedColor(C_PRESSED, cornerPx));
-            sld.addState(new int[]{}, new ColorDrawable(Color.TRANSPARENT));
-            return sld;
-        }
+        float r = cornerPx;
+        return ExpressiveKit.ripple(Color.TRANSPARENT, ExpressiveKit.radii(r, r, r, r));
     }
 
-    /** One rounded "card" container idiom (matches the main menu) for grouping section rows. */
+    /** Segmented group for a section's rows (same idiom as the main menu). */
     private static LinearLayout card(Context ctx) {
-        LinearLayout group = new LinearLayout(ctx);
-        group.setOrientation(LinearLayout.VERTICAL);
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(C_CARD);
-        bg.setCornerRadius(R_CARD);
-        group.setBackground(bg);
-        group.setPadding(6, 6, 6, 6);
+        LinearLayout group = new ExpressiveKit.SegmentedGroup(ctx);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = 16;
+        lp.topMargin = dp(ctx, 12);
         group.setLayoutParams(lp);
         return group;
     }
@@ -1320,6 +1411,125 @@ public class DialogUtils {
         });
     }
 
+    /** Extras: features ported from a JTInstagram review (toggles, startup tab, share domain). */
+    private static void showExtrasOptions(Context context) {
+        LinearLayout layout = createSwitchLayout(context);
+
+        LinearLayout toggles = card(context);
+        toggles.addView(extrasSwitch(context, R.drawable.ic_block, R.string.ig_dialog_extras_airplane_mode,
+                FeatureFlags.airplaneMode, on -> {
+                    FeatureFlags.airplaneMode = on;
+                    ps.reso.instaeclipse.mods.extras.AirplaneModeHook.apply();
+                }));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_timer, R.string.ig_dialog_extras_story_exact_time,
+                FeatureFlags.storyExactTime, on -> FeatureFlags.storyExactTime = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_movie, R.string.ig_dialog_extras_reels_no_tap_pause,
+                FeatureFlags.reelsDisableTapPause, on -> FeatureFlags.reelsDisableTapPause = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_movie, R.string.ig_dialog_extras_reels_auto_scroll,
+                FeatureFlags.reelsAutoScroll, on -> FeatureFlags.reelsAutoScroll = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_movie, R.string.ig_dialog_extras_reels_lock_scroll,
+                FeatureFlags.reelsLockScroll, on -> FeatureFlags.reelsLockScroll = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_camera, R.string.ig_dialog_extras_no_swipe_camera,
+                FeatureFlags.disableSwipeToCamera, on -> FeatureFlags.disableSwipeToCamera = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_chat, R.string.ig_dialog_extras_hide_sharesheet_group,
+                FeatureFlags.hideShareSheetGroup, on -> FeatureFlags.hideShareSheetGroup = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_shield, R.string.ig_dialog_extras_unlimited_accounts,
+                FeatureFlags.unlimitedAccounts, on -> FeatureFlags.unlimitedAccounts = on));
+        layout.addView(toggles);
+
+        layout.addView(sectionHeader(context, I18n.t(context, R.string.ig_dialog_extras_startup_tab)));
+        LinearLayout tabs = card(context);
+        int[] tabLabels = {R.string.ig_tab_default, R.string.ig_tab_feed, R.string.ig_tab_reels, R.string.ig_tab_direct,
+                R.string.ig_tab_search, R.string.ig_tab_profile, R.string.ig_tab_notifications};
+        String[] tabValues = {"", "FEED", "CLIPS", "DIRECT", "SEARCH", "PROFILE", "NEWS"};
+        RadioRow[] rows = new RadioRow[tabValues.length];
+        for (int i = 0; i < rows.length; i++) {
+            rows[i] = new RadioRow(context, I18n.t(context, tabLabels[i]), tabValues[i].equals(FeatureFlags.startupTab));
+            int idx = i;
+            rows[i].setOnClickListener(v -> {
+                FeatureFlags.startupTab = tabValues[idx];
+                SettingsManager.saveAllFlags();
+                for (RadioRow r : rows) r.setChecked(false);
+                rows[idx].setChecked(true);
+            });
+            tabs.addView(rows[i]);
+        }
+        layout.addView(tabs);
+
+        layout.addView(sectionHeader(context, I18n.t(context, R.string.ig_dialog_extras_share_domain)));
+        LinearLayout domainCard = card(context);
+        domainCard.addView(createActionRow(context, R.drawable.ic_link, shareDomainLabel(context), "#BF5AF2",
+                v -> promptShareDomain(context, (TextView) findLabel(v))));
+        layout.addView(domainCard);
+
+        showSectionDialog(context, I18n.t(context, R.string.ig_dialog_menu_extras), layout, () -> {});
+    }
+
+    private interface Toggle {
+        void set(boolean on);
+    }
+
+    private static ToggleRow extrasSwitch(Context context, int icon, int label, boolean state, Toggle onChange) {
+        ToggleRow row = createSwitch(context, icon, "#30D158", I18n.t(context, label), state);
+        row.setOnCheckedChangeListener((b, on) -> {
+            onChange.set(on);
+            SettingsManager.saveAllFlags();
+        });
+        return row;
+    }
+
+    private static String shareDomainLabel(Context context) {
+        String d = FeatureFlags.customShareDomain;
+        return d.isEmpty() ? I18n.t(context, R.string.ig_dialog_extras_share_domain_off) : d;
+    }
+
+    /** First TextView inside an action row, to refresh its label after editing. */
+    private static View findLabel(View v) {
+        if (v instanceof TextView) return v;
+        if (v instanceof android.view.ViewGroup g) {
+            for (int i = 0; i < g.getChildCount(); i++) {
+                View found = findLabel(g.getChildAt(i));
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    private static void promptShareDomain(Context context, TextView label) {
+        try {
+            Context themed = new android.view.ContextThemeWrapper(context, android.R.style.Theme_DeviceDefault_Dialog_Alert);
+            android.widget.EditText input = new android.widget.EditText(themed);
+            input.setSingleLine(true);
+            input.setHint("kkinstagram.com");
+            input.setText(FeatureFlags.customShareDomain);
+            input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+            new AlertDialog.Builder(themed)
+                    .setTitle(I18n.t(context, R.string.ig_dialog_extras_share_domain))
+                    .setMessage(I18n.t(context, R.string.ig_dialog_extras_share_domain_hint))
+                    .setView(wrapPin(themed, input))
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton(android.R.string.ok, (d, w) -> {
+                        String domain = normalizeDomain(input.getText().toString());
+                        if (domain == null) {
+                            Toast.makeText(context, I18n.t(context, R.string.ig_dialog_extras_share_domain_invalid), Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        FeatureFlags.customShareDomain = domain;
+                        SettingsManager.saveAllFlags();
+                        if (label != null) label.setText(shareDomainLabel(context));
+                    })
+                    .show();
+        } catch (Throwable ignored) {}
+    }
+
+    /** "https://www.Example.com/" → "example.com"; "" turns the feature off; null when invalid. */
+    static String normalizeDomain(String raw) {
+        String d = raw.trim().toLowerCase(java.util.Locale.ROOT)
+                .replaceFirst("^https?://", "").replaceFirst("/.*$", "");
+        if (d.isEmpty()) return "";
+        return d.matches("[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+") ? d : null;
+    }
+
     /** Top-level "Lock" section (Privacy group) — the grouped passcode-lock card. */
     private static void showLockOptions(Context context) {
         LinearLayout layout = createSwitchLayout(context);
@@ -1518,27 +1728,56 @@ public class DialogUtils {
             FeatureFlags.spoofLocation = isChecked;
             SettingsManager.saveAllFlags();
         });
+        LinearLayout toggleCard = card(context);
+        toggleCard.addView(spoofSwitch);
+        layout.addView(toggleCard);
 
-        String coordLabel = (FeatureFlags.spoofLat == 0.0 && FeatureFlags.spoofLng == 0.0)
-                ? I18n.t(context, R.string.ig_dialog_location_unset)
-                : I18n.t(context, R.string.ig_dialog_location_current, FeatureFlags.spoofLat, FeatureFlags.spoofLng);
+        boolean set = ps.reso.instaeclipse.mods.location.LocationPresets.valid(FeatureFlags.spoofLat, FeatureFlags.spoofLng);
+        String place = !set ? I18n.t(context, R.string.ig_dialog_location_unset)
+                : !FeatureFlags.spoofLabel.isEmpty() ? FeatureFlags.spoofLabel
+                : ps.reso.instaeclipse.mods.location.LocationPresets.coords(FeatureFlags.spoofLat, FeatureFlags.spoofLng);
 
-        layout.addView(createDivider(context));
-        layout.addView(spoofSwitch);
-        layout.addView(createDivider(context));
-        layout.addView(createActionRow(context, R.drawable.ic_pin,
-                I18n.t(context, R.string.ig_dialog_location_pick) + " — " + coordLabel, "#FFD60A", v -> {
-                    Bundle extras = new Bundle();
-                    extras.putDouble(LocationPickerActivity.EXTRA_LAT, FeatureFlags.spoofLat);
-                    extras.putDouble(LocationPickerActivity.EXTRA_LNG, FeatureFlags.spoofLng);
-                    if (ModuleActivityLauncher.launch(context,
-                            "ps.reso.instaeclipse.mods.location.LocationPickerActivity", extras)) {
-                        if (currentDialog != null) {
-                            try { currentDialog.dismiss(); } catch (Exception ignored) {}
-                            currentDialog = null;
-                        }
-                    }
-                }));
+        LinearLayout current = card(context);
+        View info = createInfoSection(context, I18n.t(context, R.string.ig_dialog_location_current_title), place);
+        current.addView(info);
+        current.addView(createActionRow(context, R.drawable.ic_search, I18n.t(context, R.string.ig_dialog_location_pick), "#FFD60A", v -> {
+            Bundle extras = new Bundle();
+            extras.putDouble(LocationPickerActivity.EXTRA_LAT, FeatureFlags.spoofLat);
+            extras.putDouble(LocationPickerActivity.EXTRA_LNG, FeatureFlags.spoofLng);
+            if (ModuleActivityLauncher.launch(context,
+                    "ps.reso.instaeclipse.mods.location.LocationPickerActivity", extras)) {
+                if (currentDialog != null) {
+                    try { currentDialog.dismiss(); } catch (Exception ignored) {}
+                    currentDialog = null;
+                }
+            }
+        }));
+        layout.addView(current);
+
+        java.util.List<ps.reso.instaeclipse.mods.location.LocationPresets.Preset> recent =
+                ps.reso.instaeclipse.mods.location.LocationPresets.parse(FeatureFlags.spoofRecent);
+        if (!recent.isEmpty()) {
+            layout.addView(sectionHeader(context, I18n.t(context, R.string.ig_dialog_location_recent)));
+            LinearLayout recentCard = card(context);
+            ((LinearLayout.LayoutParams) recentCard.getLayoutParams()).topMargin = 0;
+            for (ps.reso.instaeclipse.mods.location.LocationPresets.Preset p : recent) {
+                boolean active = set && ps.reso.instaeclipse.mods.location.LocationPresets.distanceMeters(
+                        p.lat, p.lng, FeatureFlags.spoofLat, FeatureFlags.spoofLng) < 5;
+                RadioRow row = new RadioRow(context, p.title(), active);
+                row.setOnClickListener(v -> {
+                    FeatureFlags.spoofLat = p.lat;
+                    FeatureFlags.spoofLng = p.lng;
+                    FeatureFlags.spoofLabel = p.label;
+                    FeatureFlags.spoofRecent = ps.reso.instaeclipse.mods.location.LocationPresets.serialize(
+                            ps.reso.instaeclipse.mods.location.LocationPresets.remember(recent, p));
+                    SettingsManager.saveAllFlags();
+                    Toast.makeText(context, I18n.t(context, R.string.ig_dialog_location_applied), Toast.LENGTH_SHORT).show();
+                    showLocationOptions(context);
+                });
+                recentCard.addView(row);
+            }
+            layout.addView(recentCard);
+        }
 
         showSectionDialog(context, I18n.t(context, R.string.ig_dialog_section_location), layout, () -> {
         });
@@ -1631,42 +1870,36 @@ public class DialogUtils {
     }
 
     private static class RadioRow extends LinearLayout {
-        private final TextView checkmark;
+        private final ExpressiveKit.RadioDot dot;
 
         RadioRow(Context context, String label, boolean checked) {
             super(context);
             setOrientation(HORIZONTAL);
-            setPadding(8, 4, 8, 4);
             setGravity(Gravity.CENTER_VERTICAL);
+            setMinimumHeight(dp(context, 56));
+            setPadding(dp(context, 16), dp(context, 8), dp(context, 16), dp(context, 8));
             setClickable(true);
             setFocusable(true);
+            setBackground(rowRipple(context, dp(context, 16)));
 
-            StateListDrawable bg = new StateListDrawable();
-            bg.addState(new int[]{android.R.attr.state_pressed}, new ColorDrawable(C_PRESSED));
-            bg.addState(new int[]{}, new ColorDrawable(Color.TRANSPARENT));
-            setBackground(bg);
+            dot = new ExpressiveKit.RadioDot(context);
+            dot.setSelectedState(checked);
+            LayoutParams dotLp = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+            dotLp.rightMargin = dp(context, 16);
+            dot.setLayoutParams(dotLp);
 
             TextView labelView = new TextView(context);
             labelView.setText(label);
-            labelView.setTextColor(Color.WHITE);
+            labelView.setTextColor(C_TEXT);
             labelView.setTextSize(16);
-            labelView.setPadding(0, 20, 16, 20);
-            LayoutParams lp = new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f);
-            labelView.setLayoutParams(lp);
+            labelView.setLayoutParams(new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
 
-            checkmark = new TextView(context);
-            checkmark.setText("✓");
-            checkmark.setTextColor(Color.parseColor("#0A84FF"));
-            checkmark.setTextSize(18);
-            checkmark.setTypeface(null, Typeface.BOLD);
-            checkmark.setVisibility(checked ? VISIBLE : INVISIBLE);
-
+            addView(dot);
             addView(labelView);
-            addView(checkmark);
         }
 
         void setChecked(boolean checked) {
-            checkmark.setVisibility(checked ? VISIBLE : INVISIBLE);
+            dot.setSelectedState(checked);
         }
     }
 
@@ -2189,83 +2422,88 @@ public class DialogUtils {
 
     @SuppressLint("SetTextI18n")
     private static void showSectionDialog(Context context, String title, LinearLayout contentLayout, Runnable onSave) {
-        if (currentDialog != null) { try { currentDialog.dismiss(); } catch (Exception ignored) {} currentDialog = null; }
+        applyPalette();
 
-        LinearLayout container = new LinearLayout(context);
-        container.setOrientation(LinearLayout.VERTICAL);
-        container.setPadding(0, 0, 0, 0);
+        LinearLayout page = new LinearLayout(context);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.addView(createDragHandle(context));
 
-        GradientDrawable background = new GradientDrawable();
-        background.setColor(C_SHEET);
-        background.setCornerRadii(new float[]{48, 48, 48, 48, 0, 0, 0, 0});
-        container.setBackground(background);
-
-        container.addView(createDragHandle(context));
-
-        // Header row: back arrow + title
+        // Pinned header: round tonal back button + headline.
         LinearLayout header = new LinearLayout(context);
         header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setPadding(20, 2, 24, 14);
         header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(dp(context, 16), dp(context, 2), dp(context, 24), dp(context, 12));
 
-        TextView backBtn = new TextView(context);
-        backBtn.setText("‹");
-        backBtn.setTextColor(C_ACCENT);
-        backBtn.setTextSize(34);
-        backBtn.setIncludeFontPadding(false);
-        backBtn.setGravity(Gravity.CENTER);
-        backBtn.setMinWidth(0);
-        backBtn.setMinimumWidth(0);
-        int bp = dp(context, 6);
-        backBtn.setPadding(bp, bp, dp(context, 16), bp);
-        StateListDrawable backBtnBg = new StateListDrawable();
-        backBtnBg.addState(new int[]{android.R.attr.state_pressed}, roundedColor(C_PRESSED, dp(context, 10)));
-        backBtnBg.addState(new int[]{}, new ColorDrawable(Color.TRANSPARENT));
-        backBtn.setBackground(backBtnBg);
-        backBtn.setClickable(true);
-        backBtn.setFocusable(true);
+        android.widget.ImageView backBtn = new android.widget.ImageView(context);
+        Drawable arrow = loadModuleIcon(R.drawable.ic_arrow_back, C_TEXT);
+        if (arrow != null) backBtn.setImageDrawable(arrow);
+        int bp = dp(context, 10);
+        backBtn.setPadding(bp, bp, bp, bp);
+        backBtn.setBackground(new android.graphics.drawable.RippleDrawable(
+                ColorStateList.valueOf(ExpressiveKit.withAlpha(C_TEXT, 0x33)),
+                ExpressiveKit.pill(ExpressiveKit.surfaceContainerHigh), ExpressiveKit.pill(Color.WHITE)));
+        LinearLayout.LayoutParams backLp = new LinearLayout.LayoutParams(dp(context, 44), dp(context, 44));
+        backLp.rightMargin = dp(context, 14);
+        backBtn.setLayoutParams(backLp);
+        backBtn.setContentDescription(I18n.t(context, R.string.ig_dialog_close));
         backBtn.setOnClickListener(v -> {
             onSave.run();
             SettingsManager.saveAllFlags();
+            navigatingBack = true;
             showEclipseOptionsDialog(context);
         });
 
         TextView titleView = new TextView(context);
         titleView.setText(title);
         titleView.setTextColor(C_TEXT);
-        titleView.setTextSize(21);
-        titleView.setTypeface(null, Typeface.BOLD);
-        titleView.setLetterSpacing(0.01f);
+        titleView.setTextSize(22);
+        titleView.setTypeface(Typeface.create("sans-serif", Typeface.BOLD));
+        titleView.setMaxLines(2);
+        titleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        titleView.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         header.addView(backBtn);
         header.addView(titleView);
-        container.addView(header);
-        container.addView(createDivider(context));
+        page.addView(header);
 
-        // Content with horizontal padding
+        groupLooseRows(contentLayout);
         LinearLayout contentWrapper = new LinearLayout(context);
         contentWrapper.setOrientation(LinearLayout.VERTICAL);
-        contentWrapper.setPadding(24, 0, 24, 0);
+        contentWrapper.setPadding(dp(context, 16), 0, dp(context, 16), dp(context, 28));
         contentWrapper.addView(contentLayout);
-        container.addView(contentWrapper);
+        page.addView(createScrollableContainer(context, contentWrapper, 0.72f));
 
-        container.addView(createDivider(context));
-
-        // Bottom padding for nav bar
-        View bottomPad = new View(context);
-        bottomPad.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 48));
-        container.addView(bottomPad);
-
-        ScrollView scrollView = createScrollableContainer(context, container);
-
-        currentDialog = createBottomSheetDialog(context, scrollView);
-        currentDialog.show();
+        presentSheet(context, page, true);
     }
 
+    /** Wraps runs of rows added straight to a section layout into segmented groups, so every
+     *  section renders as Expressive lists without rewriting each builder. */
+    private static void groupLooseRows(LinearLayout layout) {
+        layout.setPadding(0, 0, 0, 0);
+        java.util.List<View> children = new java.util.ArrayList<>();
+        for (int i = 0; i < layout.getChildCount(); i++) children.add(layout.getChildAt(i));
+        layout.removeAllViews();
+        LinearLayout run = null;
+        for (View child : children) {
+            boolean rowLike = child instanceof ToggleRow || child instanceof RadioRow
+                    || "ie_row".equals(child.getTag());
+            if (rowLike) {
+                if (run == null) {
+                    run = card(layout.getContext());
+                    layout.addView(run);
+                }
+                run.addView(child);
+            } else if (run != null && ExpressiveKit.TAG_SKIP.equals(child.getTag())) {
+                // spacer/hairline between loose rows: the segment gap replaces it
+            } else {
+                run = null;
+                layout.addView(child);
+            }
+        }
+    }
 
-    @SuppressLint("UseSwitchCompatOrMaterialCode")
     private static class ToggleRow extends LinearLayout {
-        private final Switch toggle;
+        private final ExpressiveKit.M3Switch toggle;
         private final TextView labelView;
 
         ToggleRow(Context context, String label, boolean checked) {
@@ -2275,15 +2513,12 @@ public class DialogUtils {
         ToggleRow(Context context, int iconRes, String accentHex, String label, boolean checked) {
             super(context);
             setOrientation(HORIZONTAL);
-            setPadding(8, 4, 8, 4);
             setGravity(Gravity.CENTER_VERTICAL);
+            setMinimumHeight(dp(context, 64));
+            setPadding(dp(context, iconRes != 0 ? 12 : 18), dp(context, 8), dp(context, 14), dp(context, 8));
             setClickable(true);
             setFocusable(true);
-
-            StateListDrawable bg = new StateListDrawable();
-            bg.addState(new int[]{android.R.attr.state_pressed}, new ColorDrawable(C_PRESSED));
-            bg.addState(new int[]{}, new ColorDrawable(Color.TRANSPARENT));
-            setBackground(bg);
+            setBackground(rowRipple(context, dp(context, 16)));
 
             if (iconRes != 0) {
                 addView(buildIconChip(context, iconRes, accentHex));
@@ -2291,26 +2526,20 @@ public class DialogUtils {
 
             labelView = new TextView(context);
             labelView.setText(label);
-            labelView.setTextColor(Color.WHITE);
-            labelView.setTextSize(16);
-            labelView.setPadding(0, 20, 16, 20);
+            labelView.setTextColor(C_TEXT);
+            labelView.setTextSize(15);
+            labelView.setLineSpacing(0f, 1.05f);
             LayoutParams lp = new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f);
+            lp.rightMargin = dp(context, 12);
             labelView.setLayoutParams(lp);
 
-            toggle = new Switch(context);
+            toggle = new ExpressiveKit.M3Switch(context);
             toggle.setChecked(checked);
-            toggle.setThumbTintList(new ColorStateList(
-                    new int[][]{new int[]{-android.R.attr.state_enabled}, new int[]{android.R.attr.state_checked}, new int[]{}},
-                    new int[]{Color.parseColor("#555555"), Color.parseColor("#448AFF"), Color.parseColor("#FFFFFF")}));
-            toggle.setTrackTintList(new ColorStateList(
-                    new int[][]{new int[]{-android.R.attr.state_enabled}, new int[]{android.R.attr.state_checked}, new int[]{}},
-                    new int[]{Color.parseColor("#777777"), Color.parseColor("#1C4C78"), Color.parseColor("#CFD8DC")}));
-            toggle.setClickable(false);
-            toggle.setFocusable(false);
+            toggle.setDuplicateParentStateEnabled(true);
 
             addView(labelView);
             addView(toggle);
-            setOnClickListener(v -> { if (isEnabled()) toggle.setChecked(!toggle.isChecked()); });
+            setOnClickListener(v -> { if (isEnabled()) toggle.toggle(); });
         }
 
         boolean isChecked() { return toggle.isChecked(); }
@@ -2328,8 +2557,9 @@ public class DialogUtils {
         }
 
         void makeBold() {
-            labelView.setTypeface(null, Typeface.BOLD);
-            labelView.setTextSize(17);
+            labelView.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+            labelView.setTextColor(ExpressiveKit.onPrimaryContainer);
+            labelView.setTextSize(16);
         }
     }
 
@@ -2341,19 +2571,17 @@ public class DialogUtils {
         return new ToggleRow(context, iconRes, accentHex, label, defaultState);
     }
 
-    /** The same 36dp rounded, tinted icon chip used by the main menu's nav rows. */
+    /** Round tonal icon container (Expressive shape), tinted with the section's hue. */
     private static View buildIconChip(Context context, int iconRes, String accentHex) {
         android.widget.ImageView iconView = new android.widget.ImageView(context);
-        int accent = Color.parseColor(accentHex);
-        Drawable icon = loadModuleIcon(iconRes, accent);
+        int accent = accentHex == null ? ExpressiveKit.primary : Color.parseColor(accentHex);
+        int tint = ExpressiveKit.blend(accent, Color.WHITE, 0.25f);
+        Drawable icon = loadModuleIcon(iconRes, tint);
         if (icon != null) iconView.setImageDrawable(icon);
         iconView.setScaleType(android.widget.ImageView.ScaleType.CENTER_INSIDE);
         int iconPad = dp(context, 8);
         iconView.setPadding(iconPad, iconPad, iconPad, iconPad);
-        GradientDrawable chipBg = new GradientDrawable();
-        chipBg.setColor((accent & 0x00FFFFFF) | 0x33000000);
-        chipBg.setCornerRadius(12);
-        iconView.setBackground(chipBg);
+        iconView.setBackground(ExpressiveKit.pill(ExpressiveKit.withAlpha(accent, 0x38)));
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(context, 36), dp(context, 36));
         iconLp.rightMargin = dp(context, 14);
         iconView.setLayoutParams(iconLp);
@@ -2367,20 +2595,20 @@ public class DialogUtils {
     private static LinearLayout createSwitchLayout(Context context) {
         LinearLayout layout = new LinearLayout(context);
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(16, 8, 16, 8);
         return layout;
     }
 
     private static View createInfoSection(Context context, String label, String value) {
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setPadding(40, 24, 32, 24);
+        row.setPadding(dp(context, 18), dp(context, 16), dp(context, 18), dp(context, 16));
         row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setTag("ie_row");
 
         TextView labelView = new TextView(context);
         labelView.setText(label);
-        labelView.setTextSize(17);
-        labelView.setTextColor(Color.WHITE);
+        labelView.setTextSize(16);
+        labelView.setTextColor(C_TEXT);
         labelView.setLayoutParams(new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
@@ -2440,20 +2668,16 @@ public class DialogUtils {
     private static View createActionRow(Context context, View iconView, String label, String accentHex, View.OnClickListener onClick) {
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        // Aligned with the menu-row metrics so action rows sit flush inside the same grouped cards.
-        row.setPadding(dp(context, 8), dp(context, 11), dp(context, 10), dp(context, 11));
+        row.setMinimumHeight(dp(context, 64));
+        row.setPadding(dp(context, 14), dp(context, 10), dp(context, 16), dp(context, 10));
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setClickable(true);
         row.setFocusable(true);
-        row.setBackground(rowRipple(context, 16));
+        row.setBackground(rowRipple(context, dp(context, 16)));
+        row.setTag("ie_row");
 
-        GradientDrawable iconBg = new GradientDrawable();
-        // Color.parseColor's 8-digit form is #AARRGGBB (alpha FIRST) — appending alpha as a
-        // suffix would misparse it as an opaque color instead of a translucent tint.
         int accentColor = Color.parseColor(accentHex);
-        iconBg.setColor((accentColor & 0x00FFFFFF) | 0x33000000); // 20% opacity tint
-        iconBg.setCornerRadius(12);
-        iconView.setBackground(iconBg);
+        iconView.setBackground(ExpressiveKit.pill(ExpressiveKit.withAlpha(accentColor, 0x38)));
         int ip = dp(context, 8);
         iconView.setPadding(ip, ip, ip, ip);
         LinearLayout.LayoutParams iconLp = new LinearLayout.LayoutParams(dp(context, 36), dp(context, 36));
@@ -2461,12 +2685,16 @@ public class DialogUtils {
         iconView.setLayoutParams(iconLp);
         if (iconView instanceof android.widget.ImageView) {
             ((android.widget.ImageView) iconView).setScaleType(android.widget.ImageView.ScaleType.CENTER_INSIDE);
+        } else if (iconView instanceof TextView) {
+            ((TextView) iconView).setGravity(Gravity.CENTER);
         }
 
+        // Destructive actions keep their red label; everything else reads as a normal row.
+        boolean danger = Color.red(accentColor) > 200 && Color.green(accentColor) < 110 && Color.blue(accentColor) < 110;
         TextView labelView = new TextView(context);
         labelView.setText(label);
         labelView.setTextSize(16);
-        labelView.setTextColor(Color.parseColor(accentHex));
+        labelView.setTextColor(danger ? C_DANGER : C_TEXT);
         labelView.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
         row.addView(iconView);
@@ -2479,16 +2707,13 @@ public class DialogUtils {
         LinearLayout wrapper = new LinearLayout(context);
         wrapper.setOrientation(LinearLayout.VERTICAL);
         wrapper.setGravity(Gravity.CENTER_HORIZONTAL);
-        wrapper.setPadding(0, 14, 0, 8);
+        wrapper.setPadding(0, dp(context, 12), 0, dp(context, 12));
 
         View handle = new View(context);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(120, 6);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(context, 32), dp(context, 4));
         lp.gravity = Gravity.CENTER_HORIZONTAL;
         handle.setLayoutParams(lp);
-        GradientDrawable handleBg = new GradientDrawable();
-        handleBg.setColor(C_HANDLE);
-        handleBg.setCornerRadius(3);
-        handle.setBackground(handleBg);
+        handle.setBackground(ExpressiveKit.pill(ExpressiveKit.withAlpha(C_HANDLE, 0x99)));
 
         wrapper.addView(handle);
         return wrapper;
@@ -2520,10 +2745,30 @@ public class DialogUtils {
     }
 
     private static ScrollView createScrollableContainer(Context context, View content, float heightFraction) {
-        int screenHeight = context.getResources().getDisplayMetrics().heightPixels;
+        int screenHeight = windowHeight(context);
         MaxHeightScrollView scrollView = new MaxHeightScrollView(context, Math.round(screenHeight * heightFraction));
         scrollView.addView(content);
         return scrollView;
+    }
+
+    /** Height of Instagram's own window. The context's DisplayMetrics follow the global
+     *  configuration, which stays landscape while Instagram (portrait-locked) is in front of a
+     *  rotated device, so they can report the short side. */
+    private static int windowHeight(Context context) {
+        Activity activity = unwrapActivity(context);
+        if (activity == null) activity = UIHookManager.getCurrentActivity();
+        if (activity != null) {
+            try {
+                View decor = activity.getWindow().getDecorView();
+                if (decor.getHeight() > 0) return decor.getHeight();
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                    return activity.getWindowManager().getCurrentWindowMetrics().getBounds().height();
+                }
+            } catch (Throwable ignored) {
+                // fall through to the display metrics
+            }
+        }
+        return context.getResources().getDisplayMetrics().heightPixels;
     }
 
     private static AlertDialog createBottomSheetDialog(Context context, View contentView) {
@@ -2539,20 +2784,18 @@ public class DialogUtils {
     }
 
 
+    /** Master "enable all" control as a primary-container card above the section's list. */
     private static LinearLayout createEnableAllSwitch(Context context, ToggleRow enableAllRow) {
         enableAllRow.makeBold();
+        float r = ExpressiveKit.dp(context, 24);
+        enableAllRow.setBackground(ExpressiveKit.ripple(ExpressiveKit.primaryContainer, ExpressiveKit.radii(r, r, r, r)));
 
         LinearLayout container = new LinearLayout(context);
         container.setOrientation(LinearLayout.VERTICAL);
-        container.setPadding(6, 2, 6, 2);
-
-        // Faint accent tint so the master control reads as distinct from the toggle card below it.
-        GradientDrawable background = new GradientDrawable();
-        background.setColor((C_ACCENT & 0x00FFFFFF) | 0x24000000);
-        background.setCornerRadius(R_CARD);
-        background.setStroke(1, (C_ACCENT & 0x00FFFFFF) | 0x40000000);
-        container.setBackground(background);
-
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(context, 4);
+        container.setLayoutParams(lp);
         container.addView(enableAllRow);
         return container;
     }

@@ -68,12 +68,24 @@ public class SettingsBackupManager {
         s.put("spoofLocation",           FeatureFlags.spoofLocation);
         s.put("spoofLat",                String.valueOf(FeatureFlags.spoofLat));
         s.put("spoofLng",                String.valueOf(FeatureFlags.spoofLng));
+        s.put("spoofLabel",              FeatureFlags.spoofLabel);
+        s.put("spoofRecent",             FeatureFlags.spoofRecent);
         s.put("forceReelQuality",        FeatureFlags.forceReelQuality);
         s.put("disableRepost",           FeatureFlags.disableRepost);
         s.put("showFollowerToast",       FeatureFlags.showFollowerToast);
         s.put("showFeatureToasts",       FeatureFlags.showFeatureToasts);
         s.put("enableStoryMentions",     FeatureFlags.enableStoryMentions);
         s.put("openLinksExternally",     FeatureFlags.openLinksExternally);
+        s.put("unlimitedAccounts", FeatureFlags.unlimitedAccounts);
+        s.put("storyExactTime", FeatureFlags.storyExactTime);
+        s.put("reelsDisableTapPause", FeatureFlags.reelsDisableTapPause);
+        s.put("reelsAutoScroll", FeatureFlags.reelsAutoScroll);
+        s.put("reelsLockScroll", FeatureFlags.reelsLockScroll);
+        s.put("airplaneMode", FeatureFlags.airplaneMode);
+        s.put("hideShareSheetGroup", FeatureFlags.hideShareSheetGroup);
+        s.put("disableSwipeToCamera", FeatureFlags.disableSwipeToCamera);
+        s.put("startupTab", FeatureFlags.startupTab);
+        s.put("customShareDomain", FeatureFlags.customShareDomain);
 
         // Downloader
         s.put("enablePostDownload",      FeatureFlags.enablePostDownload);
@@ -149,9 +161,21 @@ public class SettingsBackupManager {
         if (s.has("spoofLocation"))          FeatureFlags.spoofLocation          = s.getBoolean("spoofLocation");
         if (s.has("spoofLat"))               FeatureFlags.spoofLat               = parseDouble(s.get("spoofLat"), 0.0);
         if (s.has("spoofLng"))               FeatureFlags.spoofLng               = parseDouble(s.get("spoofLng"), 0.0);
+        if (s.has("spoofLabel"))             FeatureFlags.spoofLabel             = s.getString("spoofLabel");
+        if (s.has("spoofRecent"))            FeatureFlags.spoofRecent            = s.getString("spoofRecent");
         if (s.has("forceReelQuality"))        FeatureFlags.forceReelQuality       = s.getInt("forceReelQuality");
         if (s.has("disableRepost"))          FeatureFlags.disableRepost          = s.getBoolean("disableRepost");
         if (s.has("openLinksExternally"))    FeatureFlags.openLinksExternally    = s.getBoolean("openLinksExternally");
+        if (s.has("unlimitedAccounts")) FeatureFlags.unlimitedAccounts = s.getBoolean("unlimitedAccounts");
+        if (s.has("storyExactTime")) FeatureFlags.storyExactTime = s.getBoolean("storyExactTime");
+        if (s.has("reelsDisableTapPause")) FeatureFlags.reelsDisableTapPause = s.getBoolean("reelsDisableTapPause");
+        if (s.has("reelsAutoScroll")) FeatureFlags.reelsAutoScroll = s.getBoolean("reelsAutoScroll");
+        if (s.has("reelsLockScroll")) FeatureFlags.reelsLockScroll = s.getBoolean("reelsLockScroll");
+        if (s.has("airplaneMode")) FeatureFlags.airplaneMode = s.getBoolean("airplaneMode");
+        if (s.has("hideShareSheetGroup")) FeatureFlags.hideShareSheetGroup = s.getBoolean("hideShareSheetGroup");
+        if (s.has("disableSwipeToCamera")) FeatureFlags.disableSwipeToCamera = s.getBoolean("disableSwipeToCamera");
+        if (s.has("startupTab")) FeatureFlags.startupTab = s.getString("startupTab");
+        if (s.has("customShareDomain")) FeatureFlags.customShareDomain = s.getString("customShareDomain");
         if (s.has("showFollowerToast"))      FeatureFlags.showFollowerToast      = s.getBoolean("showFollowerToast");
         if (s.has("showFeatureToasts"))      FeatureFlags.showFeatureToasts      = s.getBoolean("showFeatureToasts");
         if (s.has("enableStoryMentions"))    FeatureFlags.enableStoryMentions    = s.getBoolean("enableStoryMentions");

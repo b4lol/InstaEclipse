@@ -81,6 +81,18 @@ public class FeatureFlags {
     public static volatile boolean enableCopyComment = false;
     public static volatile boolean enableCaptionCopy = false;
     public static volatile boolean openLinksExternally = false;
+
+    // Extras (ported from a JTInstagram review)
+    public static volatile boolean unlimitedAccounts = false;
+    public static volatile boolean storyExactTime = false;
+    public static volatile boolean reelsDisableTapPause = false;
+    public static volatile boolean reelsAutoScroll = false;
+    public static volatile boolean reelsLockScroll = false;
+    public static volatile boolean airplaneMode = false;
+    public static volatile boolean hideShareSheetGroup = false;
+    public static volatile boolean disableSwipeToCamera = false;
+    public static volatile String startupTab = "";
+    public static volatile String customShareDomain = "";
     public static volatile boolean disableDoubleTapLike = false;
     public static volatile boolean enablePhotoZoom = false;
 
@@ -88,6 +100,8 @@ public class FeatureFlags {
     public static volatile boolean spoofLocation = false;
     public static volatile double spoofLat = 0.0;
     public static volatile double spoofLng = 0.0;
+    public static volatile String spoofLabel = "";   // place name for spoofLat/spoofLng
+    public static volatile String spoofRecent = "";  // JSON history, see LocationPresets
 
     // Video Quality (0 = auto/off, else desired height in px, or Integer.MAX_VALUE for max available)
     public static volatile int forceReelQuality = 0;

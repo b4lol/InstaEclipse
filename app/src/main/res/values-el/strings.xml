@@ -522,4 +522,31 @@
     <string name="ig_dialog_clean_feed_following_only">Ροή μόνο από όσους ακολουθείτε</string>
     <string name="ig_dialog_misc_open_links_externally">Άνοιγμα συνδέσμων σε εξωτερικό πρόγραμμα περιήγησης</string>
     <string name="ig_caption_copy_no_hashtags">Αντιγραφή χωρίς hashtags</string>
+    <string name="ig_dialog_menu_extras">Επιπλέον</string>
+    <string name="ig_dialog_extras_airplane_mode">Λειτουργία πτήσης (εμφάνιση εκτός σύνδεσης)</string>
+    <string name="ig_dialog_extras_story_exact_time">Εμφάνιση ώρας δημοσίευσης ιστορίας</string>
+    <string name="ig_dialog_extras_reels_no_tap_pause">Απενεργοποίηση παύσης με πάτημα στα Reels</string>
+    <string name="ig_dialog_extras_reels_auto_scroll">Επιλογή αυτόματης κύλισης Reels</string>
+    <string name="ig_dialog_extras_reels_lock_scroll">Κλείδωμα κύλισης Reels</string>
+    <string name="ig_dialog_extras_no_swipe_camera">Απενεργοποίηση σύρσιμου προς κάμερα</string>
+    <string name="ig_dialog_extras_hide_sharesheet_group">Απόκρυψη δημιουργίας ομάδας στην κοινοποίηση</string>
+    <string name="ig_dialog_extras_unlimited_accounts">Απεριόριστοι λογαριασμοί</string>
+    <string name="ig_dialog_extras_startup_tab">Καρτέλα εκκίνησης</string>
+    <string name="ig_dialog_extras_share_domain">Προσαρμοσμένο domain κοινοποίησης</string>
+    <string name="ig_dialog_extras_share_domain_off">Ανενεργό</string>
+    <string name="ig_dialog_extras_share_domain_hint">Αντικαθιστά το instagram.com στους συνδέσμους που αντιγράφετε ή κοινοποιείτε. Αφήστε κενό για απενεργοποίηση.</string>
+    <string name="ig_dialog_extras_share_domain_invalid">Μη έγκυρο domain</string>
+    <string name="ig_tab_default">Προεπιλογή Instagram</string>
+    <string name="ig_tab_feed">Αρχική</string>
+    <string name="ig_tab_reels">Reels</string>
+    <string name="ig_tab_direct">Μηνύματα</string>
+    <string name="ig_tab_search">Αναζήτηση</string>
+    <string name="ig_tab_profile">Προφίλ</string>
+    <string name="ig_tab_notifications">Ειδοποιήσεις</string>
+    <string name="ig_dialog_active_count" formatted="false">%d ενεργές λειτουργίες</string>
+    <string name="loc_picker_locating">Εύρεση τοποθεσίας…</string>
+    <string name="loc_picker_unnamed">Τοποθεσία χωρίς όνομα</string>
+    <string name="ig_dialog_location_current_title">Τρέχουσα τοποθεσία</string>
+    <string name="ig_dialog_location_recent">Πρόσφατες τοποθεσίες</string>
+    <string name="ig_dialog_location_applied">Η τοποθεσία εφαρμόστηκε</string>
 </resources>

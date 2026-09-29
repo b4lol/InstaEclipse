@@ -492,4 +492,31 @@
     <string name="ig_dialog_clean_feed_following_only">Yalnız İzlənilənlər Axını</string>
     <string name="ig_dialog_misc_open_links_externally">Keçidləri Xarici Brauzerdə Aç</string>
     <string name="ig_caption_copy_no_hashtags">Heşteqsiz Kopyala</string>
+    <string name="ig_dialog_menu_extras">Əlavələr</string>
+    <string name="ig_dialog_extras_airplane_mode">Təyyarə rejimi (oflayn görün)</string>
+    <string name="ig_dialog_extras_story_exact_time">Hekayə paylaşım vaxtını göstər</string>
+    <string name="ig_dialog_extras_reels_no_tap_pause">Reels-də toxunaraq dayandırmanı söndür</string>
+    <string name="ig_dialog_extras_reels_auto_scroll">Reels avtomatik sürüşdürmə seçimi</string>
+    <string name="ig_dialog_extras_reels_lock_scroll">Reels sürüşdürməsini kilidlə</string>
+    <string name="ig_dialog_extras_no_swipe_camera">Kameraya sürüşdürməni söndür</string>
+    <string name="ig_dialog_extras_hide_sharesheet_group">Paylaşımda qrup yaratmanı gizlət</string>
+    <string name="ig_dialog_extras_unlimited_accounts">Limitsiz hesab</string>
+    <string name="ig_dialog_extras_startup_tab">Başlanğıc bölməsi</string>
+    <string name="ig_dialog_extras_share_domain">Xüsusi paylaşım domeni</string>
+    <string name="ig_dialog_extras_share_domain_off">Söndürülüb</string>
+    <string name="ig_dialog_extras_share_domain_hint">Kopyaladığın və ya paylaşdığın linklərdə instagram.com-u dəyişir. Söndürmək üçün boş burax.</string>
+    <string name="ig_dialog_extras_share_domain_invalid">Yanlış domen</string>
+    <string name="ig_tab_default">Instagram standartı</string>
+    <string name="ig_tab_feed">Əsas səhifə</string>
+    <string name="ig_tab_reels">Reels</string>
+    <string name="ig_tab_direct">Mesajlar</string>
+    <string name="ig_tab_search">Axtarış</string>
+    <string name="ig_tab_profile">Profil</string>
+    <string name="ig_tab_notifications">Bildirişlər</string>
+    <string name="ig_dialog_active_count" formatted="false">%d funksiya aktivdir</string>
+    <string name="loc_picker_locating">Yer axtarılır…</string>
+    <string name="loc_picker_unnamed">Adsız yer</string>
+    <string name="ig_dialog_location_current_title">Cari məkan</string>
+    <string name="ig_dialog_location_recent">Son məkanlar</string>
+    <string name="ig_dialog_location_applied">Məkan tətbiq edildi</string>
 </resources>

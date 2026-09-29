@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M3 switch: check mark on the selected thumb only. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/ic_switch_check" android:state_checked="true" />
+    <item android:drawable="@android:color/transparent" />
+</selector>

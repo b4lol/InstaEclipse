@@ -273,6 +273,18 @@ public class Module extends XposedModule {
     }
 
     /** Installs every feature hook (DexKit lookups included) and releases DexKit afterwards. */
+    private interface HookInstaller {
+        void install() throws Throwable;
+    }
+
+    private static void installExtra(String tag, HookInstaller installer) {
+        try {
+            installer.install();
+        } catch (Throwable t) {
+            ModuleLog.line("(InstaEclipse | " + tag + "): ❌ Failed to hook: " + t);
+        }
+    }
+
     private void installFeatureHooks(ClassLoader classLoader) {
         UIHookManager instagramUI = new UIHookManager();
         instagramUI.mainActivity(hostClassLoader);
@@ -399,6 +411,16 @@ public class Module extends XposedModule {
         } catch (Throwable ignored) {
             ModuleLog.line("(InstaEclipse | TrackingLinkDisable): ❌ Failed to hook");
         }
+
+        // Extras (ported from a JTInstagram review)
+        installExtra("UnlimitedAccounts", () -> new ps.reso.instaeclipse.mods.extras.AccountLimitHook().install(dexKitBridge, classLoader));
+        installExtra("StoryTime", () -> new ps.reso.instaeclipse.mods.extras.StoryTimestampHook().install(dexKitBridge, classLoader));
+        installExtra("Reels", () -> new ps.reso.instaeclipse.mods.extras.ReelsControlsHook().install(dexKitBridge, classLoader));
+        installExtra("Airplane", () -> new ps.reso.instaeclipse.mods.extras.AirplaneModeHook().install(classLoader));
+        installExtra("ShareSheetGroup", () -> new ps.reso.instaeclipse.mods.extras.ShareSheetGroupHook().install(classLoader));
+        installExtra("StartupTab", () -> new ps.reso.instaeclipse.mods.extras.StartupTabHook().install(classLoader));
+        installExtra("SwipeCamera", () -> new ps.reso.instaeclipse.mods.extras.SwipeToCameraHook().install(classLoader));
+        installExtra("DoubleTapExtras", () -> new ps.reso.instaeclipse.mods.extras.DoubleTapExtrasHook().install(dexKitBridge, classLoader));
 
         // Open links in the external browser
         try {
@@ -603,6 +625,7 @@ public class Module extends XposedModule {
                     FeatureManager.refreshFeatureStatus();
                     IgThemeEngine.invalidate();
                     IgThemeHook.refreshCurrentActivity();
+                    if ("airplaneMode".equals(key)) ps.reso.instaeclipse.mods.extras.AirplaneModeHook.apply();
 
                 } else if ("ps.reso.instaeclipse.ACTION_UPDATE_PREF_STRING".equals(action)) {
                     String key = intent.getStringExtra("key");

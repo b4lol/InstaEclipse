@@ -231,6 +231,60 @@ public class FeatureManager {
             FeatureStatusTracker.setDisabled("ProfileDownload");
         }
 
+        if (FeatureFlags.unlimitedAccounts) {
+            FeatureStatusTracker.setEnabled("UnlimitedAccounts", R.string.ig_dialog_extras_unlimited_accounts);
+        } else {
+            FeatureStatusTracker.setDisabled("UnlimitedAccounts");
+        }
+
+        if (FeatureFlags.storyExactTime) {
+            FeatureStatusTracker.setEnabled("StoryExactTime", R.string.ig_dialog_extras_story_exact_time);
+        } else {
+            FeatureStatusTracker.setDisabled("StoryExactTime");
+        }
+
+        if (FeatureFlags.reelsDisableTapPause) {
+            FeatureStatusTracker.setEnabled("ReelsDisableTapPause", R.string.ig_dialog_extras_reels_no_tap_pause);
+        } else {
+            FeatureStatusTracker.setDisabled("ReelsDisableTapPause");
+        }
+
+        if (FeatureFlags.reelsAutoScroll) {
+            FeatureStatusTracker.setEnabled("ReelsAutoScroll", R.string.ig_dialog_extras_reels_auto_scroll);
+        } else {
+            FeatureStatusTracker.setDisabled("ReelsAutoScroll");
+        }
+
+        if (FeatureFlags.reelsLockScroll) {
+            FeatureStatusTracker.setEnabled("ReelsLockScroll", R.string.ig_dialog_extras_reels_lock_scroll);
+        } else {
+            FeatureStatusTracker.setDisabled("ReelsLockScroll");
+        }
+
+        if (FeatureFlags.airplaneMode) {
+            FeatureStatusTracker.setEnabled("AirplaneMode", R.string.ig_dialog_extras_airplane_mode);
+        } else {
+            FeatureStatusTracker.setDisabled("AirplaneMode");
+        }
+
+        if (FeatureFlags.hideShareSheetGroup) {
+            FeatureStatusTracker.setEnabled("HideShareSheetGroup", R.string.ig_dialog_extras_hide_sharesheet_group);
+        } else {
+            FeatureStatusTracker.setDisabled("HideShareSheetGroup");
+        }
+
+        if (FeatureFlags.disableSwipeToCamera) {
+            FeatureStatusTracker.setEnabled("DisableSwipeToCamera", R.string.ig_dialog_extras_no_swipe_camera);
+        } else {
+            FeatureStatusTracker.setDisabled("DisableSwipeToCamera");
+        }
+
+        if (!FeatureFlags.startupTab.isEmpty()) {
+            FeatureStatusTracker.setEnabled("StartupTab", R.string.ig_dialog_extras_startup_tab);
+        } else {
+            FeatureStatusTracker.setDisabled("StartupTab");
+        }
+
         if (FeatureFlags.openLinksExternally) {
             FeatureStatusTracker.setEnabled("OpenLinksExternally", R.string.ig_dialog_misc_open_links_externally);
         } else {
