@@ -55,7 +55,7 @@ All notable changes to this project are documented here. Format based on
 - Companion app: Material 3 Expressive theme, fade-through tab transitions, round icon
   containers, per-section badges, chevrons, switch check icons and a tonal Instagram status
   card.
-- Version `0.7.0-test.2` (versionCode 18).
+- Version `0.7.0-test.3` (versionCode 19).
 
 ### Changed — Toolchain
 - libxposed API and service 102.0.0 (`targetApiVersion=102`). `minApiVersion` stays 101, so
