@@ -830,7 +830,8 @@ public class FeaturesFragment extends Fragment {
         defs.add(getString(R.string.feat_features));
         defs.add(Arrays.asList(
                 createSwitch(R.drawable.ic_sparkle, "#64D2FF", getString(R.string.ig_dialog_clean_feed_hide_suggested), "hideSuggestionsInFeed"),
-                createSwitch(R.drawable.ic_sparkle, "#64D2FF", getString(R.string.ig_dialog_clean_feed_hide_threads), "hideThreadsSuggestions")
+                createSwitch(R.drawable.ic_sparkle, "#64D2FF", getString(R.string.ig_dialog_clean_feed_hide_threads), "hideThreadsSuggestions"),
+                createSwitch(R.drawable.ic_sparkle, "#64D2FF", getString(R.string.ig_dialog_clean_feed_following_only), "followingOnlyFeed")
         ));
 
         showMenu(getString(R.string.ig_dialog_section_clean_feed), defs);
@@ -900,7 +901,8 @@ public class FeaturesFragment extends Fragment {
                 createMasterSwitch(getString(R.string.ig_dialog_enable_disable_all), Arrays.asList(
                         "disableStoryFlipping", "disableVideoAutoPlay", "spoofLastSeen", "disableRepost", "showFollowerToast",
                         "showFeatureToasts", "enableStoryMentions", "disableDiscoverPeople", "enableCopyComment",
-                        "disableDoubleTapLike", "enableCaptionCopy", "enablePhotoZoom", "removeMetaAI"
+                        "disableDoubleTapLike", "enableCaptionCopy", "enablePhotoZoom", "removeMetaAI",
+                        "openLinksExternally"
                 )),
                 createSwitch(R.drawable.ic_story_ring, "#BF5AF2", getString(R.string.ig_dialog_misc_disable_story_autoswipe), "disableStoryFlipping"),
                 createSwitch(R.drawable.ic_movie, "#BF5AF2", getString(R.string.ig_dialog_misc_disable_video_autoplay), "disableVideoAutoPlay"),
@@ -914,7 +916,8 @@ public class FeaturesFragment extends Fragment {
                 createSwitch(R.drawable.ic_heart, "#BF5AF2", getString(R.string.ig_dialog_misc_disable_double_tap_like), "disableDoubleTapLike"),
                 createSwitch(R.drawable.ic_content_copy, "#BF5AF2", getString(R.string.ig_dialog_misc_copy_caption), "enableCaptionCopy"),
                 createSwitch(R.drawable.ic_search, "#BF5AF2", getString(R.string.ig_dialog_misc_photo_zoom), "enablePhotoZoom"),
-                createSwitch(R.drawable.ic_sparkle, "#BF5AF2", getString(R.string.ig_dialog_misc_remove_meta_ai), "removeMetaAI")
+                createSwitch(R.drawable.ic_sparkle, "#BF5AF2", getString(R.string.ig_dialog_misc_remove_meta_ai), "removeMetaAI"),
+                createSwitch(R.drawable.ic_link, "#BF5AF2", getString(R.string.ig_dialog_misc_open_links_externally), "openLinksExternally")
         ));
 
         showMenu(getString(R.string.ig_dialog_section_misc), defs);

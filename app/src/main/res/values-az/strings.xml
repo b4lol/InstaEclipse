@@ -489,4 +489,7 @@
     <string name="ig_story_download_video_music">Videonu musiqi ilə yüklə</string>
     <string name="ig_story_cache_clear_confirm">Bütün keşlənmiş hekayələr silinsin? Bu geri qaytarıla bilməz.</string>
     <string name="ig_story_cache_cleared">Keşlənmiş hekayələr silindi</string>
+    <string name="ig_dialog_clean_feed_following_only">Yalnız İzlənilənlər Axını</string>
+    <string name="ig_dialog_misc_open_links_externally">Keçidləri Xarici Brauzerdə Aç</string>
+    <string name="ig_caption_copy_no_hashtags">Heşteqsiz Kopyala</string>
 </resources>

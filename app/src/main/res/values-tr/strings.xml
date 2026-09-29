@@ -487,4 +487,7 @@
     <string name="ig_story_download_video_music">Videoyu müzikle indir</string>
     <string name="ig_story_cache_clear_confirm">Önbelleğe alınan tüm hikayeler silinsin mi? Bu işlem geri alınamaz.</string>
     <string name="ig_story_cache_cleared">Önbelleğe alınan hikayeler silindi</string>
+    <string name="ig_dialog_clean_feed_following_only">Yalnızca Takip Edilenler Akışı</string>
+    <string name="ig_dialog_misc_open_links_externally">Bağlantıları Harici Tarayıcıda Aç</string>
+    <string name="ig_caption_copy_no_hashtags">Hashtag Olmadan Kopyala</string>
 </resources>

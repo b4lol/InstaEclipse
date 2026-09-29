@@ -1045,6 +1045,17 @@ public class CaptionCopyContextMenuHook {
                 });
                 sheet.addView(btnCopy);
 
+                final String noTags = stripHashtags(text);
+                if (!noTags.equals(text.trim())) {
+                    Button btnNoTags = makeButton(ctx,
+                            I18n.t(ctx, R.string.ig_caption_copy_no_hashtags), secondBg, secondText, dp);
+                    btnNoTags.setOnClickListener(v -> {
+                        dialog.dismiss();
+                        copyToClipboard(ctx, noTags);
+                    });
+                    sheet.addView(btnNoTags);
+                }
+
                 Button btnSelect = makeButton(ctx,
                         I18n.t(ctx, R.string.ig_comment_select_part), secondBg, secondText, dp);
                 btnSelect.setOnClickListener(v -> {
@@ -1177,6 +1188,20 @@ public class CaptionCopyContextMenuHook {
                 ModuleLog.line("(IE|Caption) ❌ SelectDialog: " + t);
             }
         });
+    }
+
+    private static final java.util.regex.Pattern HASHTAG =
+            java.util.regex.Pattern.compile("(?<![\\p{L}\\p{N}_&])#[\\p{L}\\p{M}\\p{N}_]+");
+
+    /** Caption without its #hashtags; lines left empty (a trailing tag block) are dropped. */
+    static String stripHashtags(String text) {
+        StringBuilder out = new StringBuilder();
+        for (String line : HASHTAG.matcher(text).replaceAll("").split("\n", -1)) {
+            String l = line.replaceAll("[ \t]{2,}", " ").trim();
+            if (l.isEmpty() && (out.length() == 0 || out.toString().endsWith("\n\n"))) continue;
+            out.append(l).append('\n');
+        }
+        return out.toString().trim();
     }
 
     private static void copyToClipboard(final Context ctx, final String text) {

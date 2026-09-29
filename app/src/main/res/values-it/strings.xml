@@ -419,4 +419,7 @@
     <string name="ig_update_error_message">Impossibile verificare gli aggiornamenti. Riprova più tardi.</string>
     <string name="ig_story_cache_clear_confirm">Eliminare tutte le storie in cache? L\'operazione non può essere annullata.</string>
     <string name="ig_story_cache_cleared">Storie in cache eliminate</string>
+    <string name="ig_dialog_clean_feed_following_only">Feed solo account seguiti</string>
+    <string name="ig_dialog_misc_open_links_externally">Apri link nel browser esterno</string>
+    <string name="ig_caption_copy_no_hashtags">Copia senza hashtag</string>
 </resources>

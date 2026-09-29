@@ -538,4 +538,7 @@
     <string name="ig_update_later">Later</string>
     <string name="ig_update_error_message">Failed to check for updates. Please try again later.</string>
 
+    <string name="ig_dialog_clean_feed_following_only">Following-only Feed</string>
+    <string name="ig_dialog_misc_open_links_externally">Open Links in External Browser</string>
+    <string name="ig_caption_copy_no_hashtags">Copy without Hashtags</string>
 </resources>

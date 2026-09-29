@@ -67,6 +67,7 @@ public class SettingsManager {
 
         // Clean Feed
         editor.putBoolean("hideSuggestionsInFeed", FeatureFlags.hideSuggestionsInFeed);
+        editor.putBoolean("followingOnlyFeed", FeatureFlags.followingOnlyFeed);
         editor.putBoolean("hideThreadsSuggestions", FeatureFlags.hideThreadsSuggestions);
 
         // Ads
@@ -91,6 +92,7 @@ public class SettingsManager {
         editor.putBoolean("removeBuildExpiredPopup", FeatureFlags.removeBuildExpiredPopup);
         editor.putBoolean("enableCopyComment", FeatureFlags.enableCopyComment);
         editor.putBoolean("enableCaptionCopy", FeatureFlags.enableCaptionCopy);
+        editor.putBoolean("openLinksExternally", FeatureFlags.openLinksExternally);
         editor.putBoolean("disableDoubleTapLike", FeatureFlags.disableDoubleTapLike);
         editor.putBoolean("enablePhotoZoom", FeatureFlags.enablePhotoZoom);
         editor.putBoolean("enablePostDownload", FeatureFlags.enablePostDownload);
@@ -173,6 +175,7 @@ public class SettingsManager {
 
         // Clean Feed
         FeatureFlags.hideSuggestionsInFeed = prefs.getBoolean("hideSuggestionsInFeed", false);
+        FeatureFlags.followingOnlyFeed = prefs.getBoolean("followingOnlyFeed", false);
         FeatureFlags.hideThreadsSuggestions = prefs.getBoolean("hideThreadsSuggestions", false);
 
         // Ads
@@ -197,6 +200,7 @@ public class SettingsManager {
         FeatureFlags.removeBuildExpiredPopup = prefs.getBoolean("removeBuildExpiredPopup", false);
         FeatureFlags.enableCopyComment = prefs.getBoolean("enableCopyComment", false);
         FeatureFlags.enableCaptionCopy = prefs.getBoolean("enableCaptionCopy", false);
+        FeatureFlags.openLinksExternally = prefs.getBoolean("openLinksExternally", false);
         FeatureFlags.disableDoubleTapLike = prefs.getBoolean("disableDoubleTapLike", false);
         FeatureFlags.enablePhotoZoom = prefs.getBoolean("enablePhotoZoom", false);
         FeatureFlags.enablePostDownload = prefs.getBoolean("enablePostDownload", false);

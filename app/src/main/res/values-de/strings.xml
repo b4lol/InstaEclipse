@@ -495,4 +495,7 @@
     <string name="ig_story_download_video_music">Video mit Musik herunterladen</string>
     <string name="ig_story_cache_clear_confirm">Alle zwischengespeicherten Storys löschen? Das lässt sich nicht rückgängig machen.</string>
     <string name="ig_story_cache_cleared">Zwischengespeicherte Storys gelöscht</string>
+    <string name="ig_dialog_clean_feed_following_only">Nur abonnierte Konten im Feed</string>
+    <string name="ig_dialog_misc_open_links_externally">Links im externen Browser öffnen</string>
+    <string name="ig_caption_copy_no_hashtags">Ohne Hashtags kopieren</string>
 </resources>

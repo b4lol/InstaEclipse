@@ -80,6 +80,7 @@ public class FeatureFlags {
     public static volatile boolean removeBuildExpiredPopup = false;
     public static volatile boolean enableCopyComment = false;
     public static volatile boolean enableCaptionCopy = false;
+    public static volatile boolean openLinksExternally = false;
     public static volatile boolean disableDoubleTapLike = false;
     public static volatile boolean enablePhotoZoom = false;
 
@@ -99,6 +100,7 @@ public class FeatureFlags {
     // Clean Feed
     public static volatile boolean hideSuggestionsInFeed = false;
     public static volatile boolean hideThreadsSuggestions = false;
+    public static volatile boolean followingOnlyFeed = false;
 
     // Downloader
     public static volatile boolean enablePostDownload = false;

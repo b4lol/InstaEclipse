@@ -495,4 +495,7 @@
     <string name="ig_story_download_video_music">下載含音樂的影片</string>
     <string name="ig_story_cache_clear_confirm">刪除所有已快取的限時動態？此操作無法復原。</string>
     <string name="ig_story_cache_cleared">已清除快取的限時動態</string>
+    <string name="ig_dialog_clean_feed_following_only">僅顯示追蹤的動態</string>
+    <string name="ig_dialog_misc_open_links_externally">在外部瀏覽器中開啟連結</string>
+    <string name="ig_caption_copy_no_hashtags">複製（不含主題標籤）</string>
 </resources>

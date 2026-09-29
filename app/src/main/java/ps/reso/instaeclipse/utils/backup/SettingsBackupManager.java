@@ -44,6 +44,7 @@ public class SettingsBackupManager {
         // Clean Feed
         s.put("hideSuggestionsInFeed",      FeatureFlags.hideSuggestionsInFeed);
         s.put("hideThreadsSuggestions",     FeatureFlags.hideThreadsSuggestions);
+        s.put("followingOnlyFeed",          FeatureFlags.followingOnlyFeed);
 
         // Ads
         s.put("isAdBlockEnabled",        FeatureFlags.isAdBlockEnabled);
@@ -72,6 +73,7 @@ public class SettingsBackupManager {
         s.put("showFollowerToast",       FeatureFlags.showFollowerToast);
         s.put("showFeatureToasts",       FeatureFlags.showFeatureToasts);
         s.put("enableStoryMentions",     FeatureFlags.enableStoryMentions);
+        s.put("openLinksExternally",     FeatureFlags.openLinksExternally);
 
         // Downloader
         s.put("enablePostDownload",      FeatureFlags.enablePostDownload);
@@ -126,6 +128,7 @@ public class SettingsBackupManager {
 
         if (s.has("hideSuggestionsInFeed"))     FeatureFlags.hideSuggestionsInFeed     = s.getBoolean("hideSuggestionsInFeed");
         if (s.has("hideThreadsSuggestions"))    FeatureFlags.hideThreadsSuggestions    = s.getBoolean("hideThreadsSuggestions");
+        if (s.has("followingOnlyFeed"))         FeatureFlags.followingOnlyFeed         = s.getBoolean("followingOnlyFeed");
 
         if (s.has("isAdBlockEnabled"))       FeatureFlags.isAdBlockEnabled       = s.getBoolean("isAdBlockEnabled");
         if (s.has("isAnalyticsBlocked"))     FeatureFlags.isAnalyticsBlocked     = s.getBoolean("isAnalyticsBlocked");
@@ -148,6 +151,7 @@ public class SettingsBackupManager {
         if (s.has("spoofLng"))               FeatureFlags.spoofLng               = parseDouble(s.get("spoofLng"), 0.0);
         if (s.has("forceReelQuality"))        FeatureFlags.forceReelQuality       = s.getInt("forceReelQuality");
         if (s.has("disableRepost"))          FeatureFlags.disableRepost          = s.getBoolean("disableRepost");
+        if (s.has("openLinksExternally"))    FeatureFlags.openLinksExternally    = s.getBoolean("openLinksExternally");
         if (s.has("showFollowerToast"))      FeatureFlags.showFollowerToast      = s.getBoolean("showFollowerToast");
         if (s.has("showFeatureToasts"))      FeatureFlags.showFeatureToasts      = s.getBoolean("showFeatureToasts");
         if (s.has("enableStoryMentions"))    FeatureFlags.enableStoryMentions    = s.getBoolean("enableStoryMentions");

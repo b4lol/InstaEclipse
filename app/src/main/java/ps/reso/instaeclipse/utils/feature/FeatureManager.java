@@ -103,6 +103,12 @@ public class FeatureManager {
             FeatureStatusTracker.setDisabled("HideSuggestionsInFeed");
         }
 
+        if (FeatureFlags.followingOnlyFeed) {
+            FeatureStatusTracker.setEnabled("FollowingOnlyFeed", R.string.ig_dialog_clean_feed_following_only);
+        } else {
+            FeatureStatusTracker.setDisabled("FollowingOnlyFeed");
+        }
+
         if (FeatureFlags.hideThreadsSuggestions) {
             FeatureStatusTracker.setEnabled("HideThreadsSuggestions", R.string.ig_dialog_clean_feed_hide_threads);
         } else {
@@ -223,6 +229,12 @@ public class FeatureManager {
             FeatureStatusTracker.setEnabled("ProfileDownload", R.string.ig_dialog_downloader_profiles);
         } else {
             FeatureStatusTracker.setDisabled("ProfileDownload");
+        }
+
+        if (FeatureFlags.openLinksExternally) {
+            FeatureStatusTracker.setEnabled("OpenLinksExternally", R.string.ig_dialog_misc_open_links_externally);
+        } else {
+            FeatureStatusTracker.setDisabled("OpenLinksExternally");
         }
 
         if (FeatureFlags.disableDoubleTapLike) {

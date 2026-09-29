@@ -379,6 +379,13 @@ public class Module extends XposedModule {
             ModuleLog.line("(InstaEclipse | HideSuggested): ❌ Failed to hook");
         }
 
+        // Following-only home feed
+        try {
+            new ps.reso.instaeclipse.mods.feed.FollowingOnlyFeedHook().install(dexKitBridge, classLoader);
+        } catch (Throwable ignored) {
+            ModuleLog.line("(InstaEclipse | FollowingFeed): ❌ Failed to hook");
+        }
+
         // Ads Blocker
         try {
             new AdBlocker().disableSponsoredContent(dexKitBridge, hostClassLoader);
@@ -391,6 +398,13 @@ public class Module extends XposedModule {
             new TrackingLinkDisable().disableTrackingLinks(hostClassLoader);
         } catch (Throwable ignored) {
             ModuleLog.line("(InstaEclipse | TrackingLinkDisable): ❌ Failed to hook");
+        }
+
+        // Open links in the external browser
+        try {
+            new ps.reso.instaeclipse.mods.misc.OpenLinksExternallyHook().install();
+        } catch (Throwable ignored) {
+            ModuleLog.line("(InstaEclipse | ExtLinks): ❌ Failed to hook");
         }
 
         // Miscellaneous
