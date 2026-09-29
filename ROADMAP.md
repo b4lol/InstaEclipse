@@ -1,514 +1,708 @@
-# InstaEclipse — Kotlin ve Java Hibrit Geçiş Yol Haritası
+# InstaEclipse — Roadmap
 
-> Hazırlanma tarihi: 29 Eylül 2026  
-> Durum: Uygulama planı; Kotlin geçişi henüz başlamadı.  
-> Referans: `fdcceb4`, `modernize/libxposed-101`, `v0.7.0-test.1`.
+> Prepared: 29 September 2026  
+> Status: implementation plan; the Kotlin migration and the API 102 adoption have not started.  
+> Reference: `modernize/libxposed-101` at `404dc80` (libxposed 102 / AGP 9 toolchain), `v0.7.0-test.2`.
 
-## 1. Amaç ve başarı tanımı
+This document has two tracks:
 
-InstaEclipse'i mevcut libxposed çalışma modelini koruyarak, Java ve Kotlin'in birlikte kullanıldığı, bakımı daha kolay bir projeye dönüştürmek. Çalışan özellikleri topluca yeniden yazmak yerine yeni geliştirmelerde ve bakım ihtiyacı olan alanlarda Kotlin kullanmak.
+- **Java/Kotlin hybrid migration** (sections 1–6): move new and maintenance-heavy code to Kotlin
+  without rewriting working features.
+- **libxposed API 102 adoption** (section 7): use what API 102 adds on top of the current hook
+  model.
 
-Başarı, Kotlin dosyalarının oranıyla ölçülmez. Başarı ölçütleri:
+The tracks are independent. They share the invariants, test strategy, release and rollback rules
+in sections 8–13, and they are never mixed in one change.
 
-- Instagram içindeki hook davranışları ve kullanıcı ayarları korunur.
-- Yeni ekranlar ve arka plan işlerinin durum, hata ve yaşam döngüsü yönetimi açık hale gelir.
-- Java–Kotlin sınırları test edilir; iki süreç arasında veri sözleşmeleri belgelenir.
-- Başlangıç, kaydırma, bellek ve indirme performansında kabul edilmemiş gerileme oluşmaz.
-- Her geçiş küçük, incelenebilir ve geri alınabilir değişikliklerden oluşur.
-- Her yayımlanan APK belirli bir kaynak commit'i, imza ve doğrulama kaydıyla eşleşir.
+## 1. Goal and definition of success
 
-Bu belge hedef mimariyi ve yapılacak işleri tanımlar. Kutular yalnızca ilgili kanıt eklendiğinde tamamlandı olarak işaretlenir. Tarih ve efor tahminleri Faz 0 envanterinden sonra belirlenir; burada verilen sıra teslim tarihi taahhüdü değildir.
+Turn InstaEclipse into a project where Java and Kotlin live side by side and that is easier to
+maintain, while keeping the current libxposed runtime model. Instead of rewriting working features
+in bulk, use Kotlin for new development and for areas that need maintenance anyway.
 
-## 2. Mevcut durum ve referans sürüm
+Success is not measured by the share of Kotlin files. Success criteria:
 
-| Alan | Mevcut yapı | Geçişte yaklaşım |
+- Hook behavior inside Instagram and user settings are preserved.
+- State, errors and lifecycle of new screens and background work become explicit.
+- Java–Kotlin boundaries are tested; data contracts between the two processes are documented.
+- No unaccepted regression in startup, scrolling, memory or download performance.
+- Every step consists of small, reviewable and revertible changes.
+- Every published APK maps to a specific source commit, signature and verification record.
+
+This document defines the target architecture and the work to do. Boxes are ticked only when the
+matching evidence is attached. Dates and effort estimates are set after the Phase 0 inventory;
+the order given here is not a delivery commitment.
+
+## 2. Current state and reference version
+
+| Area | Current setup | Approach during the migration |
 | --- | --- | --- |
-| Uygulama | Tek `app` modülü, Java ve XML arayüzler | Önce aynı modülde birlikte kullanım |
-| Kimlik | `ps.reso.instaeclipse` | Korunacak |
-| Android | `minSdk 28`, `compileSdk/targetSdk 36` | Dil geçişinden bağımsız yönetilecek |
-| Java hedefi | Java 17 kaynak ve bytecode uyumluluğu | Kotlin JVM hedefiyle eşleştirilecek |
-| Derleme | AGP `8.13.2`, Gradle `8.13`, sürüm kataloğu | Kotlin uyumu doğrulanarak küçük bir değişiklikle eklenecek |
-| Hook motoru | libxposed API `101.0.1`, service `101.0.0` | Mevcut API 101 modeli korunacak |
-| Metot keşfi | DexKit, `LazyDexKit`, `DexKitCache` | Önbellek ve gecikmeli açılış korunacak |
-| UI | Activity, Fragment, View ve XML | Kotlin için Compose zorunlu olmayacak |
-| Ayarlar | Instagram tarafında `instaeclipse_prefs`, companion tarafında `instaeclipse_cache` | Anahtarlar ve anlamları korunacak |
-| Süreçler arası iletişim | Paket hedefli broadcast, imza izni, nonce ve remote preferences | Güvenlik sözleşmeleri korunacak |
-| Küçültme | Release için `minifyEnabled false` | R8 ayrı bir çalışma olarak değerlendirilecek |
-| Doğrulama | JVM testleri, lint, debug APK derlemesi | Karma dil ve cihaz kontrolleriyle genişletilecek |
+| Application | Single `app` module, Java and XML UIs | Mixed use inside the same module first |
+| Identity | `ps.reso.instaeclipse` | Kept |
+| Android | `minSdk 28`, `compileSdk 37`, `targetSdk 36` | Managed independently of the language migration |
+| Java target | Java 17 source and bytecode compatibility | Matched by the Kotlin JVM target |
+| Build | AGP `9.4.1`, Gradle `9.8.0`, version catalog | Kotlin added in one small change once compatibility is verified |
+| Hook engine | libxposed API `102.0.0`, service `102.0.0`; `minApiVersion=101`, `targetApiVersion=102` | Current hook model kept; API 102 features per section 7 |
+| Method discovery | DexKit, `LazyDexKit`, `DexKitCache` | Cache and lazy opening kept |
+| UI | Activities, Fragments, Views and XML; Material 3 Expressive with Dynamic Colors | Compose is not required for Kotlin |
+| Settings | `instaeclipse_prefs` on the Instagram side, `instaeclipse_cache` on the companion side | Keys and their meaning kept |
+| Inter-process communication | Package-targeted broadcasts, signature permission, nonce and remote preferences | Security contracts kept |
+| Shrinking | `minifyEnabled false` for release | R8 handled as a separate effort |
+| Verification | 51 JVM unit tests, lint (including the libxposed checks), debug APK build | Extended with mixed-language and device checks |
 
-Referans test APK'sında 41 birim testi, lint ve APK imza doğrulaması başarılıdır. Bu, tüm özelliklerin cihazda doğrulandığı anlamına gelmez; bu APK için cihaz testi yapılmadı.
+The unit tests, lint and a debug build pass on the reference commit. Device checks on Instagram
+447.0.0.21.81 with the Vector framework covered module loading, hook installation and part of the
+features; they are not a full feature verification.
 
-Belge hazırlanırken çalışma ağacında commitlenmemiş özellik değişiklikleri de bulunuyor. Bunlar referans sürümün tamamlanmış kapsamı sayılmaz. Faz 0'da seçilecek temiz başlangıç commit'ine hangilerinin dahil edildiği açıkça kaydedilmelidir.
+Feature work since the first modernization — following-only feed, external links, caption copy
+without hashtags, the Extras section, the Material 3 Expressive UI and the location spoof rework —
+is committed (`421a76f`, `22e6db1`) but only partly verified on a device. Phase 0 must record which
+features count as the baseline and their verification state.
 
-İlgili mevcut belgeler:
+Related documents:
 
-- [Mimari](docs/ARCHITECTURE.md)
-- [Katkı kuralları](CONTRIBUTING.md)
-- [Güvenlik politikası](SECURITY.md)
-- [Güvenlik incelemesi](docs/SECURITY_AUDIT.md)
-- [Performans incelemesi](docs/PERFORMANCE_AUDIT.md)
-- [Değişiklik geçmişi](CHANGELOG.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
+- [Security audit](docs/SECURITY_AUDIT.md)
+- [Performance audit](docs/PERFORMANCE_AUDIT.md)
+- [Changelog](CHANGELOG.md)
 
-## 3. Kapsam ve mimari kararlar
+## 3. Scope and architecture decisions
 
-### 3.1 Kabul edilen yön
+### 3.1 Accepted direction
 
-1. libxposed temelli çalışma modeli devam eder.
-2. Java hook çekirdeği başlangıçta korunur.
-3. Kotlin önce Android'den bağımsız yeni mantıkta ve companion uygulamada kullanılır.
-4. Her sınıf sırf dil birliği sağlamak için dönüştürülmez.
-5. Dil dönüşümü, davranış değişikliği ve paket taşıması mümkün olduğunca ayrı değişikliklerde yapılır.
-6. Modül sınırları önce kod bağımlılıklarıyla netleştirilir; Gradle modüllerine bölme daha sonra gerekçelendirilir.
-7. Ürün davranışını değiştiren tercihlerin test ve sürüm notu karşılığı bulunur.
+1. The libxposed-based runtime model continues.
+2. The Java hook core is kept at the start.
+3. Kotlin is used first in new Android-independent logic and in the companion app.
+4. No class is converted just for the sake of a single language.
+5. Language conversion, behavior changes and package moves happen in separate changes wherever
+   possible.
+6. Module boundaries are first clarified through code dependencies; splitting into Gradle modules
+   is justified later.
+7. Choices that change product behavior come with tests and a release note entry.
 
-### 3.2 Bu yol haritasına dahil olmayan işler
+### 3.2 Out of scope
 
-- Tüm Java kaynaklarını Kotlin'e çevirmek.
-- Instagram APK'sını doğrudan yamalayan yeni bir patcher geliştirmek.
-- Morphe'nin kodunu veya modül düzenini aynen taşımak.
-- libxposed API değişimi, SDK yükseltmesi ve Kotlin geçişini tek değişiklikte yapmak.
-- Bütün ekranları Compose ile yeniden yazmak.
-- Sırf Kotlin eklendiği için veritabanı, DataStore, DI framework'ü veya yeni ağ kütüphanesi eklemek.
-- Dil değişiminden otomatik hız, daha az RAM kullanımı veya Instagram sürümlerine kalıcı uyumluluk beklemek.
+- Converting all Java sources to Kotlin.
+- Building a new patcher that modifies the Instagram APK directly.
+- Copying Morphe's code or module layout.
+- Changing the libxposed API, upgrading the SDK and migrating to Kotlin in a single change.
+- Rewriting every screen in Compose.
+- Adding a database, DataStore, a DI framework or a new networking library only because Kotlin was
+  added.
+- Expecting speed, lower RAM use or lasting compatibility with new Instagram versions from a
+  language change.
 
-Morphe Patcher, APK bytecode'u ve kaynakları üzerinde değişiklik yapan bir kütüphanedir. Buradaki plan ise Instagram çalışırken müdahale eden mevcut modülü geliştirmektir. İleride doğrudan APK yaması istenirse paketleme, yeniden imzalama, sürüm eşleştirme, dağıtım ve bakım maliyetleri için ayrı bir fizibilite belgesi hazırlanmalıdır.
+Morphe Patcher is a library that modifies APK bytecode and resources. This plan instead improves
+the existing module, which intervenes while Instagram runs. If direct APK patching is ever wanted,
+a separate feasibility document must cover packaging, re-signing, version matching, distribution
+and maintenance costs.
 
-## 4. Hedef sorumluluk ve dil dağılımı
+## 4. Target responsibilities and language split
 
-| Alan / mevcut örnekler | Süreç | Hedef dil | Uygulama kararı |
+| Area / current examples | Process | Target language | Decision |
 | --- | --- | --- | --- |
-| `Xposed/Module`, `hook/*` | Instagram | Java | Giriş noktası ve interceptor semantiği korunur |
-| `LazyDexKit`, `DexKitCache`, `ResIds` | Ağırlıkla Instagram | Java | Keşif ve performans çekirdeği ilk geçişin dışında |
-| `mods/ghost`, `mods/network`, `mods/ads`, feed ve UI hook'ları | Instagram | Öncelikle Java | Yalnızca somut bakım ihtiyacı varsa ayrı değerlendirme |
-| `MainActivity`, `fragments/*` | Companion | Kademeli Kotlin | Ekran başına dönüşüm, mevcut XML ile başlanır |
-| `VersionCheck*`, yedekleme ve saf doğrulama mantığı | Companion / ortak | Kotlin adayı | Önce I/O ve iş kuralları ayrılır |
-| `DownloadSaveService`, indirme koordinasyonu | Companion | Sonraki aşamada Kotlin adayı | Servis yaşam döngüsü doğrulanmadan dönüştürülmez |
-| `SettingsManager`, `RemotePrefs`, `IpcSecurity` | Her iki süreç | Java sözleşme + gerektiğinde Kotlin adaptör | Depolama/IPC davranışı korunur |
-| `FeatureFlags`, `FeatureManager` | Instagram ağırlıklı | Başlangıçta Java | Sıcak yolda senkron ve ucuz okuma korunur |
-| `DialogUtils`, Instagram içine eklenen görünümler | Instagram | Başlangıçta Java | Companion UI dönüşümüyle karıştırılmaz |
-| Konum ve tema Activity'leri | Companion | İlerleyen aşamada Kotlin | Bağlı Instagram hook'larından ayrı ele alınır |
-| Testler | JVM / cihaz | Java ve Kotlin | Sözleşme testleri iki dilden kullanım içerebilir |
+| `Xposed/Module`, `hook/*` | Instagram | Java | Entry point and interceptor semantics kept |
+| `LazyDexKit`, `DexKitCache`, `ResIds` | Mostly Instagram | Java | Discovery and performance core outside the first migration |
+| `mods/ghost`, `mods/network`, `mods/ads`, `mods/extras`, feed and UI hooks | Instagram | Java first | Evaluated separately only for a concrete maintenance need |
+| `MainActivity`, `fragments/*` | Companion | Gradual Kotlin | Screen by screen, starting with the existing XML |
+| `VersionCheck*`, backup and pure validation logic | Companion / shared | Kotlin candidates | I/O and business rules separated first |
+| `DownloadSaveService`, download coordination | Companion | Kotlin candidate later | Not converted before the service lifecycle is verified |
+| `SettingsManager`, `RemotePrefs`, `IpcSecurity` | Both processes | Java contract + Kotlin adapter where needed | Storage/IPC behavior kept |
+| `FeatureFlags`, `FeatureManager` | Mostly Instagram | Java at first | Synchronous, cheap reads on hot paths kept |
+| `DialogUtils`, `ExpressiveKit`, views added inside Instagram | Instagram | Java at first | Not mixed with the companion UI conversion |
+| Location and theme Activities, `LocationPresets` | Companion | Kotlin later | Handled separately from the related Instagram hooks |
+| Tests | JVM / device | Java and Kotlin | Contract tests may call from both languages |
 
-### 4.1 Bağımlılık yönü
+### 4.1 Dependency direction
 
 ```text
-Companion UI (Kotlin/Java) ──> companion iş mantığı ──> veri/IPC adaptörleri
+Companion UI (Kotlin/Java) ──> companion business logic ──> data/IPC adapters
                                                       │
-                                           ortak veri sözleşmeleri
+                                           shared data contracts
                                                       │
-Instagram hook'ları (Java) ──> hook çekirdeği + ayarların yerel görünümü
+Instagram hooks (Java) ──> hook core + local view of the settings
 ```
 
-Ortak sözleşmeler companion UI'ına, Fragment/Activity sınıflarına veya belirli Instagram sınıflarına bağımlı olmamalıdır. Aynı APK içinde paket ayrımı gerçek süreç izolasyonu sağlamaz; Context, ClassLoader, UID ve izin sahipliği her çağrıda doğru olmalıdır.
+Shared contracts must not depend on the companion UI, on Fragment/Activity classes or on specific
+Instagram classes. Package separation inside one APK is not process isolation; Context,
+ClassLoader, UID and permission ownership must be right on every call.
 
-### 4.2 Olası sonraki Gradle modülleri
+### 4.2 Possible later Gradle modules
 
-Aşağıdaki isimler öneridir; başlangıçta yeni modül oluşturulmayacaktır:
+The names below are suggestions; no new module is created at the start:
 
-- `:core-contracts`: Android bağımlılığı gerektirmeyen veri ve davranış sözleşmeleri.
-- `:hook-runtime`: libxposed ve Instagram tarafındaki çekirdek.
-- `:companion`: yardımcı uygulamanın ekranları ve servisleri.
-- `:app`: manifest, kaynaklar ve APK paketleme.
+- `:core-contracts`: data and behavior contracts without Android dependencies.
+- `:hook-runtime`: the libxposed and Instagram-side core.
+- `:companion`: the companion app's screens and services.
+- `:app`: manifest, resources and APK packaging.
 
-`R` kaynakları, manifest birleştirme, native DexKit paketleme, döngüsel bağımlılıklar ve Xposed giriş metadatası çözülmeden fiziksel modül ayrımı yapılmaz. Tek `app` modülünde kalmak da kabul edilebilir nihai sonuçtur.
+No physical split happens before `R` resources, manifest merging, native DexKit packaging,
+dependency cycles and the Xposed entry metadata are solved. Staying with a single `app` module is
+an acceptable final outcome.
 
-## 5. Java–Kotlin birlikte kullanım kuralları
+## 5. Java–Kotlin interoperability rules
 
-### 5.1 API ve bytecode sözleşmeleri
+### 5.1 API and bytecode contracts
 
-- Java çağıran kod için basit sınıf, arayüz, enum ve açık sonuç türleri tercih edilir.
-- `suspend`, `Flow` ve Kotlin'e özgü işlev türleri doğrudan mevcut Java hook API'sine taşınmaz; ihtiyaç halinde companion tarafında adaptör sağlanır.
-- Java çağrılarında `object`, `companion object`, varsayılan parametre ve property erişiminin ürettiği gerçek imzalar incelenir.
-- `@JvmStatic`, `@JvmField`, `@JvmOverloads`, `@JvmName` ve `@Throws` yalnızca mevcut çağrı sözleşmesi gerektiriyorsa kullanılır.
-- Reflection ile erişilen sınıf/metot adları, görünürlük, constructor ve parametre türleri korunur. Manifest, explicit intent ve `java_init.list` referansları ayrıca kontrol edilir.
-- Paket ve sınıf adının aynı kalması tek başına yeterli sayılmaz; alan erişimi, static üyeler ve exception davranışı da doğrulanır.
-- Kotlin `internal` görünürlüğü güvenlik veya süreç izolasyonu sınırı olarak kabul edilmez.
+- Plain classes, interfaces, enums and explicit result types are preferred for Java callers.
+- `suspend`, `Flow` and Kotlin-specific function types are not pushed into the existing Java hook
+  API; companion-side adapters are provided where needed.
+- The real signatures produced by `object`, `companion object`, default parameters and property
+  access are inspected for Java calls.
+- `@JvmStatic`, `@JvmField`, `@JvmOverloads`, `@JvmName` and `@Throws` are used only when an
+  existing call contract requires them.
+- Class/method names, visibility, constructors and parameter types reached through reflection are
+  kept. Manifest, explicit intent and `java_init.list` references are checked separately.
+- Keeping the package and class name is not enough on its own; field access, static members and
+  exception behavior are verified too.
+- Kotlin `internal` visibility is not a security or process-isolation boundary.
 
-### 5.2 Null, koleksiyon ve veri uyumluluğu
+### 5.2 Null, collection and data compatibility
 
-- Java'dan gelen platform tipleri güvenilir non-null veri kabul edilmez; sınırda doğrulanır.
-- Yeni kodda `!!` istisna olmalı; kullanımı gerekçelendirilmelidir.
-- Intent extra, reflection sonucu, disk/JSON verisi ve host uygulama nesneleri doğrulanmadan kullanılmaz.
-- Primitive/boxed tip farkları, nullable değerler ve mutable koleksiyon paylaşımı için test yazılır.
-- Gson ile kullanılan modellerde alan adları, varsayılanlar, eksik/null alanlar ve constructor davranışı eski örneklerle test edilir; `data class` dönüşümü otomatik uyumluluk sağlamaz.
-- Hata gizleyen boş sonuçlar yerine kullanıcıya veya çağırana anlamlı hata türü iletilir; mevcut fail-safe hook davranışı korunur.
+- Platform types coming from Java are not trusted as non-null data; they are validated at the
+  boundary.
+- `!!` is an exception in new code and its use must be justified.
+- Intent extras, reflection results, disk/JSON data and host app objects are validated before use.
+- Primitive/boxed differences, nullable values and shared mutable collections are covered by tests.
+- Models used with Gson are tested with old samples for field names, defaults, missing/null fields
+  and constructor behavior; converting to a `data class` does not guarantee compatibility.
+- Meaningful error types reach the user or caller instead of empty results that hide failures;
+  the current fail-safe hook behavior is kept.
 
-### 5.3 Thread ve coroutine kuralları
+### 5.3 Threads and coroutines
 
-- Hook callback'i senkron kalır; sonucu etkilemesi gereken iş coroutine'e ertelenmez.
-- Hook, UI veya ana thread üzerinde `runBlocking` kullanılmaz.
-- `GlobalScope` kullanılmaz; her işin sahibi ve iptal zamanı belirlenir.
-- Fragment görünümüyle ilgili işler view yaşam döngüsüne bağlanır. Ekran yeniden oluşturulunca aynı işin iki kez başlaması engellenir.
-- Servis işleri açık bir servis scope'u tarafından yönetilir; kapanış ve zaman aşımında iptal edilir.
-- `CancellationException` normal hata olarak yutulmaz; geniş `catch` ve `runCatching` kullanımları bu açıdan incelenir.
-- `Dispatchers.IO` tek başına indirme sayısını sınırlama mekanizması değildir. Eşzamanlılık ayrıca sınırlandırılır.
-- Coroutine'e geçmek bloklayan I/O'yu kendiliğinden iptal edilebilir yapmaz; bağlantı, stream ve dosya kaynakları kapatılır.
-- `volatile` alanların çoklu alan işlemlerini atomik yapmadığı dikkate alınır; tutarlı ayar snapshot'ı veya açık senkronizasyon tasarlanır.
+- Hook callbacks stay synchronous; work that must affect the result is not deferred to a coroutine.
+- No `runBlocking` on hook, UI or main threads.
+- No `GlobalScope`; every job has an owner and a cancellation point.
+- Work tied to a Fragment's views follows the view lifecycle. Starting the same work twice after a
+  recreation is prevented.
+- Service work is owned by an explicit service scope and cancelled on shutdown and timeout.
+- `CancellationException` is not swallowed as an ordinary error; broad `catch` and `runCatching`
+  uses are reviewed for this.
+- `Dispatchers.IO` alone does not limit how many downloads run; concurrency is bounded separately.
+- Moving to coroutines does not make blocking I/O cancellable; connections, streams and file
+  handles are closed.
+- `volatile` fields do not make multi-field updates atomic; a consistent settings snapshot or
+  explicit synchronization is designed.
 
-### 5.4 ClassLoader ve performans
+### 5.4 ClassLoader and performance
 
-- Kotlin runtime sınıflarının modül yükleyicisi üzerinden doğru çözüldüğü gerçek framework üzerinde sınanır; Instagram'ın kendi Kotlin bağımlılıklarına güvenilmez.
-- Companion ViewModel/lifecycle altyapısı Instagram hook sürecine taşınmaz.
-- Sıcak hook yoluna coroutine, Flow collector, gereksiz lambda/collection zinciri veya yeni reflection taraması eklenmez.
-- Özellik kapalıyken `isActive()` hızlı çıkışı korunur.
-- View olaylarında `ViewAttachDispatcher`, kaynak çözümlemede `ResIds`, keşifte mevcut DexKit önbelleği kullanılır.
-- Log kilidi altında disk I/O yapılmaz; main thread'e ağ, parola türetme veya uzun disk işi eklenmez.
+- That Kotlin runtime classes resolve through the module's class loader is tested on a real
+  framework; Instagram's own Kotlin dependencies are not relied on.
+- Companion ViewModel/lifecycle infrastructure is not brought into the hooked Instagram process.
+- No coroutines, Flow collectors, needless lambda/collection chains or new reflection scans on hot
+  hook paths.
+- The `isActive()` fast exit while a feature is off is kept.
+- `ViewAttachDispatcher` is used for view events, `ResIds` for resource lookups and the existing
+  DexKit cache for discovery.
+- No disk I/O under the log lock; no network, password derivation or long disk work on the main
+  thread.
 
-## 6. Aşamalar ve tamamlanma kapıları
+## 6. Phases and exit gates
 
-Bağımlılık sırası: **Faz 0 → Faz 1 → Faz 2 → Faz 3 → Faz 4 → Faz 5 → Faz 6**. Faz 7 isteğe bağlıdır. Güvenlik, test ve belge işleri her aşamanın parçasıdır.
+Dependency order: **Phase 0 → Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6**.
+Phase 7 is optional. Security, tests and documentation are part of every phase.
 
-### Faz 0 — Başlangıç sürümünü ve ölçümleri sabitleme
+### Phase 0 — Fix the baseline and measurements
 
-- [ ] Commitlenmemiş değişiklikleri inceleyip hangi özelliklerin başlangıç sürümüne dahil edileceğini belirle; ilgisiz çalışmaları geçiş PR'ına katma.
-- [ ] Temiz ve yeniden derlenebilir başlangıç commit'ini, APK checksum'unu ve imza sertifikası parmak izini kaydet.
-- [ ] Özellik envanteri çıkar: ayar anahtarı, varsayılan değer, hook sınıfı, süreç, bağımlılıklar, desteklenen sürüm ve doğrulama durumu.
-- [ ] Özellikle feed, harici bağlantı ve caption değişikliklerinin durumunu başlangıç commit'i üzerinden kesinleştir.
-- [ ] Reflection, manifest ve IPC üzerinden kullanılan sınıf/metot/veri sözleşmelerini listele.
-- [ ] Ayar yedeği, eski JSON örnekleri ve bozuk giriş örnekleri için kişisel veri içermeyen test fixture'ları oluştur.
-- [ ] Mevcut JVM/lint/derleme sonuçlarını kaydet; bilinen hataları yeni gerilemelerden ayır.
-- [ ] Bölüm 8'deki cihaz ve performans ölçümlerini referans APK üzerinde yap.
-- [ ] Her özellik için test sorumlusu, cihaz erişimi ve eksik doğrulama alanlarını kaydet.
+- [ ] Decide which of the committed features (`421a76f`, `22e6db1`) belong to the baseline and
+  record their verification state; keep unrelated work out of migration PRs.
+- [ ] Record a clean, reproducible baseline commit, the APK checksum and the signing certificate
+  fingerprint.
+- [ ] Build a feature inventory: settings key, default, hook class, process, dependencies,
+  supported versions and verification state.
+- [ ] Settle the state of the following-only feed, external links, caption copy, Extras and
+  location spoofing on the baseline commit.
+- [ ] List the class/method/data contracts used through reflection, the manifest and IPC.
+- [ ] Create test fixtures without personal data for settings backups, old JSON samples and broken
+  input.
+- [ ] Record the current JVM/lint/build results; separate known failures from new regressions.
+- [ ] Run the device and performance measurements of section 9 on the reference APK.
+- [ ] Record a test owner, device access and verification gaps for every feature.
 
-**Çıkış ölçütü:** Kaynak commit'i belli bir baseline, özellik matrisi ve ölçüm kaydı vardır. Cihaz erişimi olmayan alanlar açıkça “doğrulanmadı” olarak işaretlidir; kararlı sürüm için gerekli alanların eksikliği kapatılmadan kararlı yayına geçilmez.
+**Exit gate:** a baseline tied to a source commit, a feature matrix and a measurement record exist.
+Areas without device access are explicitly marked "not verified"; no stable release happens while
+areas required for it are missing.
 
-### Faz 1 — Kotlin derleme altyapısı
+### Phase 1 — Kotlin build support
 
-- [ ] Mevcut AGP/Gradle/JDK ile uyumlu Kotlin sürümünü uygulama tarihinde resmi uyumluluk belgelerinden seç ve sürüm kataloğuna sabitle.
-- [ ] Mevcut AGP 8 yapılandırmasına uygun Kotlin Android plugin'ini ekle; farklı AGP nesillerine ait kurulum yöntemlerini karıştırma.
-- [ ] Java ve Kotlin JVM hedeflerini 17 olarak hizala; CI JDK'sını açıkça sabitle.
-- [ ] Kaynak dizini tercihini belirle: `app/src/main/kotlin` ve `app/src/test/kotlin`; mevcut Java dizinleri korunur.
-- [ ] Kotlin runtime sürüm/bağımlılık ağacını incele; yinelenen ve gereksiz bağımlılıkları tespit et.
-- [ ] Gerçek bir saf mantık ihtiyacını karşılayan küçük Kotlin bileşeni ve Java'dan çağrı testi ekle; kullanılmayan örnek sınıf bırakma.
-- [ ] Java'dan Kotlin'e ve Kotlin'den Java'ya çağrı içeren derlemeyi doğrula.
-- [ ] Temiz debug/release derlemesini, libxposed metadata ve native kütüphanelerin APK içinde kaldığını kontrol et.
-- [ ] APK boyutu, method sayısı ve temiz/artımlı derleme sürelerindeki farkı kaydet.
-- [ ] `CONTRIBUTING.md` içinde Kotlin stilini ve birlikte kullanım kurallarını güncelle.
+- [ ] On the day of implementation, pick a Kotlin version compatible with the current AGP/Gradle/JDK
+  from the official compatibility documents and pin it in the version catalog.
+- [ ] Use AGP 9's built-in Kotlin support (no separate `org.jetbrains.kotlin.android` plugin); do
+  not mix setup methods from different AGP generations.
+- [ ] Align the Java and Kotlin JVM targets at 17; pin the CI JDK explicitly.
+- [ ] Decide the source directories: `app/src/main/kotlin` and `app/src/test/kotlin`; the Java
+  directories stay.
+- [ ] Review the Kotlin runtime version/dependency tree; find duplicated and needless dependencies.
+- [ ] Add a small Kotlin component that serves a real pure-logic need, plus a test calling it from
+  Java; leave no unused sample classes.
+- [ ] Verify a build with Java-to-Kotlin and Kotlin-to-Java calls.
+- [ ] Check clean debug/release builds and that the libxposed metadata and native libraries stay in
+  the APK.
+- [ ] Record the change in APK size, method count and clean/incremental build times.
+- [ ] Update `CONTRIBUTING.md` with the Kotlin style and interoperability rules.
 
-**Çıkış ölçütü:** Karma dil derlemesi CI'da geçer, mevcut davranış değişmemiştir, framework modülü yükleyebilir. Bu faza Compose, depolama değişimi veya hook dönüşümü eklenmez.
+**Exit gate:** the mixed-language build passes in CI, current behavior is unchanged and the
+framework can load the module. No Compose, storage change or hook conversion is added in this
+phase.
 
-### Faz 2 — Düşük riskli pilot geçiş
+### Phase 2 — Low-risk pilot conversion
 
-- [ ] Tek bir aday seç: Android'den bağımsız sürüm karşılaştırma veya benzer sınırlı bir doğrulama/politika bileşeni.
-- [ ] Dönüşüm öncesinde sınır durumlarını ve mevcut Java çağrılarını testlerle sabitle.
-- [ ] Public API, exception ve null davranışını koruyarak Kotlin'e dönüştür.
-- [ ] Dönüşüm sırasında mantık değişikliği gerekiyorsa ayrı commit/PR'a ayır.
-- [ ] Eski ve yeni uygulamanın aynı fixture setinde aynı sonuçları verdiğini doğrula.
-- [ ] Pilotun gerçek kazancını değerlendir: okunabilirlik, test edilebilirlik, bağımlılık maliyeti ve inceleme zorluğu.
-- [ ] Pilot başarısızsa dönüşümü geri al; çalışan Kotlin altyapısını tutup tutmamayı ayrı değerlendir.
+- [ ] Pick one candidate: Android-independent version comparison or a similarly bounded
+  validation/policy component (for example `LocationPresets`' pure helpers).
+- [ ] Pin edge cases and the existing Java calls with tests before converting.
+- [ ] Convert to Kotlin while keeping the public API, exceptions and null behavior.
+- [ ] Put any logic change needed during the conversion in a separate commit/PR.
+- [ ] Verify that the old and new implementations give the same results on the same fixtures.
+- [ ] Assess the pilot's real gain: readability, testability, dependency cost and review effort.
+- [ ] If the pilot fails, revert the conversion; decide separately whether to keep the working
+  Kotlin build support.
 
-**Çıkış ölçütü:** Java çağıranlar değişmeden çalışır, anlamlı regresyon testleri geçer ve sonraki dönüşümler için belgelenmiş bir örnek oluşur.
+**Exit gate:** Java callers work unchanged, meaningful regression tests pass and a documented
+example for later conversions exists.
 
-### Faz 3 — Companion ekranlarını kademeli dönüştürme
+### Phase 3 — Gradual conversion of companion screens
 
-Önerilen sıra: `HelpFragment` / basit ekran → `HomeFragment` → `LoggingFragment` → `FeaturesFragment` → `MainActivity` koordinasyonu → tema ve konum Activity'leri. Gerçek bağımlılık analizi sırayı değiştirebilir.
+Suggested order: `HelpFragment` / a simple screen → `HomeFragment` → `LoggingFragment` →
+`FeaturesFragment` → `MainActivity` coordination → theme and location Activities. Real dependency
+analysis may change the order.
 
-- [ ] İlk ekranda mevcut View/XML görünümünü koruyarak Kotlin'e geç.
-- [ ] View referanslarını görünüm yaşam döngüsüne bağla; gerekiyorsa View Binding kullan.
-- [ ] Ağ/disk/IPC işlerini Fragment gövdesinden küçük servis veya repository arayüzlerine çıkar.
-- [ ] Karmaşık ekran durumlarında ViewModel kullan; basit statik ekranlara gereksiz katman ekleme.
-- [ ] Yükleniyor/boş/başarılı/hata/iptal durumlarını açıkça modelle.
-- [ ] Rotation, arka plana geçiş, geri dönüş ve süreç yeniden oluşturma davranışını doğrula.
-- [ ] Ayar değişikliklerinin staging/commit davranışını, yeniden girişte yüklenmesini ve iki taraftan yapılan güncellemeleri koru.
-- [ ] Log ekranında sınırlı buffer ve kişisel veri temizliği korunur; ekrandan çıkınca gereksiz toplama durur.
-- [ ] Türkçe, İngilizce ve RTL dilde taşma; yazı boyutu, TalkBack, karanlık tema ve erişilebilirlik kontrolü yap.
-- [ ] Bütün kullanıcı metinlerini kaynak dosyalarında tut; mevcut çeviri anahtarlarını koru.
+- [ ] Move the first screen to Kotlin while keeping the existing View/XML look.
+- [ ] Tie view references to the view lifecycle; use View Binding where it helps.
+- [ ] Move network/disk/IPC work out of Fragment bodies into small service or repository
+  interfaces.
+- [ ] Use a ViewModel for complex screen state; do not add layers to simple static screens.
+- [ ] Model loading/empty/success/error/cancelled states explicitly.
+- [ ] Verify rotation, backgrounding, returning and process recreation.
+- [ ] Keep the staging/commit behavior of settings changes, reloading on re-entry and updates made
+  from both sides.
+- [ ] The log screen keeps its bounded buffer and personal data scrubbing; collection stops when the
+  screen is left.
+- [ ] Check overflow in Turkish, English and an RTL language; font scale, TalkBack, dark theme and
+  accessibility.
+- [ ] Keep all user-facing text in resource files; keep the existing translation keys.
 
-**Çıkış ölçütü:** Dönüştürülen ekran başına davranış ve yaşam döngüsü kontrolleri geçer; UI yenilemesi gerekiyorsa dil dönüşümünden ayrı incelenir. Instagram içindeki `DialogUtils` menüsü bu fazın companion dönüşümüne dahil değildir.
+**Exit gate:** behavior and lifecycle checks pass per converted screen; any UI refresh is reviewed
+separately from the language conversion. The in-Instagram `DialogUtils` menu is not part of this
+phase's companion conversion.
 
-### Faz 4 — Companion arka plan işleri
+### Phase 4 — Companion background work
 
-Önerilen sıra: güncelleme kontrolü → ayar yedekleme/geri yükleme → indirme koordinasyonu. `PasscodeHasher` gibi çalışan güvenlik bileşenleri yalnızca Kotlin oranını artırmak için dönüştürülmez.
+Suggested order: update check → settings backup/restore → download coordination. Working security
+components such as `PasscodeHasher` are not converted just to raise the Kotlin share.
 
-- [ ] Her iş için sahip, scope, dispatcher, zaman aşımı, iptal ve yeniden deneme politikasını tanımla.
-- [ ] Güncelleme kontrolünde eşzamanlı yinelenen istekleri ve ekrandan ayrılma davranışını yönet.
-- [ ] Yedekleme/geri yüklemeyi main thread dışına taşı; doğrulamadan mevcut veriyi değiştirme.
-- [ ] `DownloadSaveService` için bildirim, FGS başlatma kısıtları, servis kapanışı ve Android 15+ timeout davranışını koru.
-- [ ] İndirme paralelliği ve kuyruk boyutunu açıkça sınırla; sınırsız coroutine başlatma.
-- [ ] Timeout, iptal ve yeniden denemelerde stream/bağlantı kapanışını ve yarım dosya temizliğini doğrula.
-- [ ] Tekrar denemede aynı medyanın yanlışlıkla çoğaltılmasını önle; mevcut isimlendirme politikasını belgele.
-- [ ] CDN HTTPS allowlist, redirect doğrulaması, boyut sınırı ve dosya adı temizliğini koru.
-- [ ] SAF izni kaybı, dolu depolama, ağ kesintisi, servis sonlandırılması ve çoklu indirmeyi test et.
-- [ ] Video/ses birleştirme, carousel ve farklı medya türlerinde çıktı bütünlüğünü doğrula.
+- [ ] Define owner, scope, dispatcher, timeout, cancellation and retry policy for every job.
+- [ ] Handle concurrent duplicate requests and leaving the screen during the update check.
+- [ ] Move backup/restore off the main thread; do not modify existing data before validation.
+- [ ] Keep notification, FGS start restrictions, service shutdown and the Android 15+ timeout
+  behavior of `DownloadSaveService`.
+- [ ] Bound download parallelism and queue size explicitly; no unbounded coroutine launches.
+- [ ] Verify stream/connection closing and partial file cleanup on timeout, cancel and retry.
+- [ ] Prevent accidental duplication of the same media on retry; document the current naming
+  policy.
+- [ ] Keep the CDN HTTPS allowlist, redirect validation, size limit and file name sanitizing.
+- [ ] Test lost SAF permission, full storage, network loss, service kill and multiple downloads.
+- [ ] Verify output integrity for video/audio muxing, carousels and different media types.
 
-**Çıkış ölçütü:** İptal ve hata yolları dahil cihaz testleri geçer; kayıp/bozuk medya, sınırsız iş birikimi veya servis sızıntısı yoktur. Instagram içinde çalışan indirme yolları companion dönüşümüyle otomatik olarak değiştirilmez.
+**Exit gate:** device tests pass, including cancel and error paths; no lost/broken media, unbounded
+job build-up or service leak. Download paths running inside Instagram are not changed by the
+companion conversion.
 
-### Faz 5 — Ayar ve IPC sözleşmelerini güçlendirme
+### Phase 5 — Strengthening the settings and IPC contracts
 
-Bu fazın amacı depolama teknolojisini değiştirmek değildir. Gerekirse Kotlin arayüzü mevcut Java uygulamasını sarar.
+The goal of this phase is not to change the storage technology. Where needed, a Kotlin interface
+wraps the existing Java implementation.
 
-- [ ] Ayar anahtarları, türleri, varsayılanları ve hangi tarafın hangi alan için otorite olduğu belgelenir.
-- [ ] String tabanlı dağınık erişim için Java uyumlu, tipli bir sözleşme değerlendirilir.
-- [ ] `FeatureFlags` hızlı okumaları korunur; hook yoluna disk okuma veya Flow aboneliği eklenmez.
-- [ ] Companion cache, Instagram tercihleri ve remote preferences arasında offline/yeniden başlatma senaryoları test edilir.
-- [ ] Paket hedefleme, imza izni ve nonce eşleştirmesi bütün ilgili iletişim yollarında korunur.
-- [ ] Eksik, yanlış tipli, fazla büyük veya yetkisiz verilerle negatif testler eklenir.
-- [ ] Parola/hash/token gibi sırlar IPC ve loglara aktarılmaz.
-- [ ] JSON/ayar şeması gerçekten değişecekse sürüm, yükseltme, bozuk veri kurtarma ve eski sürüm davranışı ayrıca tanımlanır.
-- [ ] Yazma işlemleri atomik kalır; başarısız import mevcut ayarları silmez.
-- [ ] Framework remote preference desteği olmayan kurulumlarda mevcut fallback yolu cihazda doğrulanır.
+- [ ] Document settings keys, types, defaults and which side is authoritative for each field.
+- [ ] Evaluate a typed, Java-compatible contract for scattered string-based access.
+- [ ] Keep fast `FeatureFlags` reads; no disk reads or Flow subscriptions on hook paths.
+- [ ] Test offline/restart scenarios between the companion cache, the Instagram prefs and remote
+  preferences.
+- [ ] Keep package targeting, the signature permission and nonce matching on every related channel.
+- [ ] Add negative tests with missing, mistyped, oversized or unauthorized data.
+- [ ] Never send secrets such as passwords/hashes/tokens over IPC or to logs.
+- [ ] If the JSON/settings schema really changes, define versioning, upgrade, recovery from broken
+  data and old-version behavior separately.
+- [ ] Writes stay atomic; a failed import never deletes the existing settings.
+- [ ] Verify the current fallback path on a device for setups without framework remote
+  preferences.
 
-**Çıkış ölçütü:** Eski ayarlar ve yedekler okunur, süreçler arası eşitleme çalışır, yetkisiz istekler reddedilir ve dönüşüm sonrası veri kaybı görülmez.
+**Exit gate:** old settings and backups are read, cross-process sync works, unauthorized requests
+are rejected and no data loss is seen after the conversion.
 
-### Faz 6 — Regresyon, test yayını ve kararlılaştırma
+### Phase 6 — Regression, test release and stabilization
 
-- [ ] Bölüm 8–10'daki matrisi hedef APK üzerinde tamamla.
-- [ ] Baseline ile aynı koşullarda performans ve boyut karşılaştırması yap.
-- [ ] P0/P1 sorunları kapat; çözülmeyen daha düşük öncelikli sorunları sürüm notunda belirt.
-- [ ] Her değişikliği belirli bir commit'e bağlayan prerelease üret.
-- [ ] Test kullanıcıları için cihaz/Android/Instagram/framework sürümü ve tekrar adımı içeren rapor şablonu hazırla.
-- [ ] Her küçük dönüşüm grubundan sonra test sürümü yayımla; büyük toplu dönüşümün sonunu bekleme.
-- [ ] Test süresini ve yeterli cihaz kapsamasını release öncesinde tanımla; yalnızca “şikâyet gelmedi” sonucuna dayanma.
-- [ ] Mimari, katkı, değişiklik ve bilinen sorun belgelerini güncelle.
-- [ ] Geri dönüş adımlarını gerçek ayar yedeği ve seçilmiş sürümlerle doğrula.
+- [ ] Complete the matrix of sections 9–11 on the target APK.
+- [ ] Compare performance and size with the baseline under the same conditions.
+- [ ] Close P0/P1 issues; list unresolved lower-priority issues in the release notes.
+- [ ] Produce a prerelease that ties every change to a specific commit.
+- [ ] Prepare a report template for testers with device/Android/Instagram/framework versions and
+  reproduction steps.
+- [ ] Publish a test build after every small conversion group; do not wait for the end of a big
+  batch.
+- [ ] Define the test period and enough device coverage before release; do not rely on "no
+  complaints".
+- [ ] Update the architecture, contributing, changelog and known-issues documents.
+- [ ] Verify the rollback steps with a real settings backup and selected versions.
 
-**Çıkış ölçütü:** Kaynak, artifact, imza, test raporu ve bilinen sınırlamalar birbiriyle eşleşir. Kararlı sürüm için gereken tüm kapılar kapanmıştır.
+**Exit gate:** source, artifact, signature, test report and known limitations match. All gates
+required for a stable release are closed.
 
-### Faz 7 — İsteğe bağlı mimari iyileştirmeler
+### Phase 7 — Optional architecture improvements
 
-Yalnızca önceki fazlar kararlı hale geldiğinde ve somut fayda gösterildiğinde:
+Only once the earlier phases are stable and a concrete benefit is shown:
 
-- [ ] Gradle modül ayrımını döngüsel bağımlılık ve derleme süresi verilerine göre değerlendir.
-- [ ] Bir companion ekranında Compose prototipi için ayrı karar kaydı hazırla; APK boyutu ve performans etkisini ölç.
-- [ ] Hook kaydı için Kotlin DSL ancak Java API'sine göre bakım kazancı ve düşük runtime maliyeti gösterirse değerlendir.
-- [ ] R8'i ayrı bir çalışma olarak ele al; reflection, JNI, serialization, metadata ve giriş sınıfları için keep kuralları/testleri oluştur.
-- [ ] Depolama veya DI değişikliğini kendi migration ve geri dönüş planıyla ele al.
+- [ ] Evaluate a Gradle module split based on dependency cycles and build time data.
+- [ ] Write a separate decision record for a Compose prototype on one companion screen; measure the
+  APK size and performance impact.
+- [ ] Consider a Kotlin DSL for hook registration only if it shows a maintenance gain and low runtime
+  cost over the Java API.
+- [ ] Treat R8 as a separate effort; create keep rules/tests for reflection, JNI, serialization,
+  metadata and entry classes.
+- [ ] Handle any storage or DI change with its own migration and rollback plan.
 
-**Çıkış ölçütü:** Her öneri için kabul/ret ve gerekçe kaydı vardır. Bu fazın yapılmaması hibrit geçişin başarısızlığı sayılmaz.
+**Exit gate:** every proposal has an accept/reject record with reasons. Skipping this phase does not
+mean the hybrid migration failed.
 
-## 7. Ayar, veri ve güvenlik değişmezleri
+## 7. libxposed API 102 adoption
 
-1. Uygulama kimliği ve mevcut kurulumun erişmesi gereken veri yolları dil dönüşümü nedeniyle değiştirilmez.
-2. Ayar anahtarları ve varsayılanları açık bir ürün kararı olmadan değiştirilmez.
-3. Hidden chats, unsent mesaj kayıtları, story cache ve DM lock verileri dönüşümden önce/sonra karşılaştırılır; hassas kayıtlar test raporuna kopyalanmaz.
-4. Eski parola hash'inin yükseltilmesi, PBKDF2 doğrulaması ve kilitlenme davranışı korunur.
-5. İmza izniyle korunan companion → Instagram iletişimi gevşetilmez.
-6. Instagram sürecinin companion ile aynı UID/izinlere sahip olduğu varsayılmaz; ters yöndeki Activity/Service erişimi ayrıca doğrulanır.
-7. Exported component girdileri ve URI izinleri güvenilir kabul edilmez.
-8. Yeni bağımlılıklar ihtiyaç, bakım durumu, lisans ve APK/runtime etkisi açısından incelenir.
-9. Release imzalama anahtarları, token'lar ve gerçek kullanıcı verileri depoya veya CI loglarına yazılmaz.
-10. Veri şeması değişirse eski sürümün veriyi okuyacağı varsayılmaz; geri dönüş yolu ayrı test edilir.
+### 7.1 Current state
 
-## 8. Test stratejisi ve cihaz matrisi
+The build uses libxposed api and service `102.0.0` (`404dc80`). `module.prop` declares
+`targetApiVersion=102` and keeps `minApiVersion=101`, so frameworks that only support API 101 still
+load the module. No API 102 method is called yet. The libxposed lint checks flag API 102 calls
+made without a framework version check.
 
-### 8.1 Otomatik kontroller
+API 102 does not change the hook model: the hook layer (`Module`, `MethodHook`, `HookBridge`,
+`HookHelpers`, `RemotePrefs`) is the only code that talks to libxposed, and the feature code above
+it (85 files, ~21.7k lines) is not affected. **A full rewrite of the hooks for API 102 is not
+planned:** it would bring no benefit and would risk breaking the Instagram-version-specific lookups
+verified on 447.
 
-Mevcut temel kontrol:
+What API 102 adds:
+
+| Addition | Where | Use here |
+| --- | --- | --- |
+| Hook IDs (`HookBuilder.setId`, `HookHandle.getId`) | api | Name every hook after its feature for logs and diagnostics |
+| `HookHandle.replaceHook` | api | Swap a hooker in place instead of unhook + hook |
+| `XposedModule.detach()` | api | Remove the module from Instagram when every feature is off |
+| Hot reload (`onHotReloading` / `onHotReloaded`) | api | Load a new module build without restarting Instagram |
+| `getRunningTargets`, `hotReloadModule` | service | Show hooked Instagram processes; trigger a reload from the companion |
+
+### 7.2 Rules
+
+- Every API 102 call is guarded by the framework's API version (`XposedInterface.getApiVersion()`
+  in the module, `XposedService.getApiVersion()` in the companion). Lint must stay clean.
+- `minApiVersion` stays 101 unless a decision record justifies dropping API 101 frameworks.
+- API 102 work is never mixed with a Kotlin conversion in the same change.
+- Hot reload stays refused (the default `onHotReloading` returns `false`) until step 5 below is
+  complete; the module keeps static state that a reload would otherwise leave stale.
+
+### 7.3 Steps
+
+Estimates are working time at the pace of the recent sessions, including device testing.
+
+| Step | Work | Estimate | Exit gate |
+| --- | --- | --- | --- |
+| 0 | Log the framework's API version at module load and show it in the companion; confirm whether the test device's Vector supports API 102 | < 1 h | Framework name and API version recorded in the device matrix |
+| 1 | Hook IDs through `HookBridge` for all ~174 hook installs; `replaceHook` where a hooker is swapped | 1–2 h | Every hook log line carries its feature ID; no behavior change on API 101 |
+| 2 | Companion status card: hooked Instagram processes via `getRunningTargets` | 1–2 h | Card shows running targets on API 102, hides the row on API 101 |
+| 3 | `detach()` when every feature is off, re-attach on the next launch | ~1 h | Instagram runs unhooked with all features off; enabling a feature takes effect after a restart |
+| 4 | Hot reload design: inventory the 105 mutable static fields in `mods/`, the 9 broadcast receivers, views injected into Instagram, open sheets and DexKit handles; decide what goes into the saved-state `Bundle` | 2–3 h | Written inventory and design note |
+| 5 | Hot reload implementation: `onHotReloading` saves state and tears down receivers/views, `onHotReloaded` restores it; companion "Reload in Instagram" action through `hotReloadModule` | 4–7 h | Reload on a device keeps settings, hidden chats, unsent log and open features; no duplicate receivers, hooks or views; repeated reloads do not grow memory |
+
+Steps 0–3 take about half a day and are low risk. Steps 4–5 take about one and a half to two days
+and carry most of the risk; their main benefit is development speed (no Instagram restart per
+build), so they are done only when that is needed.
+
+### 7.4 Risks
+
+| Risk | Early sign | Mitigation / rollback |
+| --- | --- | --- |
+| Framework on the test device lacks API 102 | Step 0 reports API 101 | Steps 1–5 stay behind the version check; verify on a framework that supports 102 |
+| Stale static state after hot reload | Features act on old settings or old views | Inventory in step 4, reload tests in step 5, keep refusing reloads until they pass |
+| Duplicate receivers or hooks after reload | Actions fire twice, rising memory | Explicit teardown in `onHotReloading`; default `onHotReloaded` unhooks old handles |
+| `detach()` leaves partial state | Injected views or receivers survive | Detach only at startup before hooks install features, or tear down first |
+
+## 8. Settings, data and security invariants
+
+1. The application identity and the data paths an existing install relies on are not changed by a
+   language conversion.
+2. Settings keys and defaults are not changed without an explicit product decision.
+3. Hidden chats, unsent message logs, the story cache, DM lock data and the location history are
+   compared before/after a conversion; sensitive records are not copied into test reports.
+4. Upgrading old password hashes, PBKDF2 verification and the lockout behavior are kept.
+5. The signature-protected companion → Instagram channel is not loosened.
+6. The Instagram process is not assumed to share the companion's UID/permissions; access in the
+   other direction (Activities/Services) is verified separately.
+7. Exported component inputs and URI permissions are not trusted.
+8. New dependencies are reviewed for need, maintenance state, license and APK/runtime impact.
+9. Release signing keys, tokens and real user data are never written to the repository or CI logs.
+10. If a data schema changes, the old version is not assumed to read the data; the rollback path is
+    tested separately.
+
+## 9. Test strategy and device matrix
+
+### 9.1 Automated checks
+
+Current baseline check:
 
 ```bash
 ./gradlew testDebugUnitTest lintDebug assembleDebug
 ```
 
-Kotlin altyapısı ve paketleme değiştiğinde ayrıca:
+Additionally, when the Kotlin setup or packaging changes:
 
 ```bash
 ./gradlew assembleRelease
 ```
 
-`assembleRelease` başarısı imzalı, dağıtıma hazır APK üretildiği anlamına gelmez; signing yapılandırması ayrıca doğrulanır. `clean` her çalıştırmada zorunlu değildir; Faz 1 ve sürüm kapısında temiz ortam derlemesi yapılır.
+A passing `assembleRelease` does not mean a signed, distributable APK was produced; the signing
+configuration is verified separately. `clean` is not required on every run; a clean-environment
+build is done in Phase 1 and at the release gate.
 
-Test kapsamı:
+Test coverage:
 
-- Hook interceptor zinciri: argüman değiştirme, erken sonuç/exception, after callback ve callback hata izolasyonu.
-- Java–Kotlin imzaları, null davranışı, serialization ve sınır değerler.
-- Ayar import/export uyumluluğu, atomik yazma ve bozuk veri.
-- URL/redirect/dosya adı/boyut doğrulama politikaları.
-- Coroutine iptali, tekrar giriş, timeout ve sınırlı paralellik; coroutine eklenirse uygun test scheduler kullanımı.
-- Fragment/Activity yaşam döngüsü, permission ve exported component davranışları için gerekli instrumentation testleri.
+- Hook interceptor chain: argument changes, early result/exception, after callbacks and callback
+  error isolation.
+- Java–Kotlin signatures, null behavior, serialization and edge values.
+- Settings import/export compatibility, atomic writes and broken data.
+- URL/redirect/file name/size validation policies.
+- Coroutine cancellation, re-entry, timeouts and bounded parallelism; a proper test scheduler if
+  coroutines are added.
+- Instrumentation tests where needed for Fragment/Activity lifecycle, permissions and exported
+  components.
+- API 102 paths with the framework reporting API 101 and API 102.
 
-JVM testleri gerçek libxposed yüklemesini, ClassLoader'ı veya Instagram davranışını doğrulamaz. Cihaz kontrolleri ayrıca gereklidir. Sadece satırları birebir tekrar eden testler yerine veri kaybı ve davranış gerilemesini yakalayan testler yazılır.
+JVM tests do not verify real libxposed loading, the ClassLoader or Instagram's behavior. Device
+checks are needed as well. Tests are written to catch data loss and behavior regressions, not to
+repeat the implementation line by line.
 
-### 8.2 Asgari platform kapsamı
+### 9.2 Minimum platform coverage
 
-| Boyut | Kontrol |
+| Dimension | Check |
 | --- | --- |
-| Minimum Android | API 28'de companion kurulumu/açılışı; hook desteği test edilen framework'e göre ayrıca belirtilir |
-| Güncel hedef | Android 16 / API 36'da tam uçtan uca kontrol |
-| Servis kısıtları | Android 14/15 veya eşdeğer kapsama sağlayan cihazlarda FGS/bildirim/timeout kontrolleri |
-| Framework | API 101 destekleyen kullanılan framework'ün tam sürümü kaydedilir |
-| LSPatch | Destek iddia edilecekse API 101 destekli gerçek kurulumda ayrı doğrulama yapılır |
-| Instagram | Referans sürüm, yayın anında hedeflenen güncel sürüm ve desteklenen önceki sürüm kaydedilir |
-| Paket varyantı | Resmi paket ve gerçekten destek iddiası olan varyantlar; paket allowlist'i test kanıtı sayılmaz |
-| Donanım | Mümkünse düşük/orta bellekli cihaz ve en az bir fiziksel arm64 cihaz |
-| Kurulum | Temiz kurulum, aynı anahtarla yükseltme, backup/restore ve süreç yeniden başlatma |
-| Dil/erişilebilirlik | Türkçe, İngilizce, RTL, büyük font, TalkBack ve karanlık tema |
+| Minimum Android | Companion install/launch on API 28; hook support stated per tested framework |
+| Current target | Full end-to-end check on Android 16 / API 36 |
+| Service restrictions | FGS/notification/timeout checks on Android 14/15 or devices giving equivalent coverage |
+| Framework | Exact version and libxposed API version (101 or 102) of the framework used |
+| LSPatch | Separate verification on a real API 101+ setup if support is claimed |
+| Instagram | Reference version, the current version targeted at release time and the supported previous version |
+| Package variants | The official package and variants that really claim support; the package allowlist is not test evidence |
+| Hardware | A low/mid memory device where possible and at least one physical arm64 device |
+| Install | Clean install, upgrade with the same key, backup/restore and process restart |
+| Language/accessibility | Turkish, English, RTL, large font, TalkBack and dark theme |
 
-Her satır için cihaz modeli, ABI, Android build'i, Instagram sürümü, framework sürümü, APK commit'i, sonuç ve tarih tutulur. Erişilemeyen kombinasyon “test edildi” olarak sunulmaz.
+For every row, record device model, ABI, Android build, Instagram version, framework version, APK
+commit, result and date. Untested combinations are never presented as "tested".
 
-### 8.3 Özellik regresyon matrisi
+### 9.3 Feature regression matrix
 
-Her test, ilgili özellik açıkken ve kapalıyken normal Instagram davranışını da kapsar.
+Every test also covers normal Instagram behavior with the feature on and off.
 
-| Grup | Asgari senaryolar |
+| Group | Minimum scenarios |
 | --- | --- |
-| Başlatma | Companion/Instagram cold ve warm start, modül etkin/pasif, desteklenmeyen süreç, Instagram güncellemesi sonrası ilk açılış |
-| Ayarlar | Companion ve Instagram menüsünden değişiklik, uygulama kapalıyken değişiklik, yeniden başlatma ve eşitleme |
-| Gizlilik | DM/story seen, typing, screenshot, view-once, kaybolan mesaj ve manuel mark-as-read akışları |
-| Sohbet verileri | Gizli sohbetler, unsent kayıtları, DM lock doğru/yanlış parola, lockout ve geri yükleme |
-| Feed/UI | Reklam/öneri filtreleri, reels/story kapatma, DM istisnası, Meta AI temizleme, zoom ve menüler |
-| Medya | Fotoğraf, video, reel, story, carousel, profil fotoğrafı, ses birleştirme, adlandırma, SAF/default klasör |
-| Yardımcı özellikler | Caption/comment kopyalama, mention/follow göstergeleri, autoplay ve çift dokunma tercihleri |
-| Tema/konum | Tema, font, renkler, konum seçimi ve bunların Instagram tarafındaki etkileri |
-| Geliştirici ayarları | JSON import/export, bozuk/uyumsuz dosya ve yetkisiz çağrı |
-| Yeni özellikler | Faz 0'da kabul edilen following-only feed, harici bağlantı ve diğer ek özelliklerin ayrı senaryoları |
+| Startup | Companion/Instagram cold and warm start, module enabled/disabled, unsupported process, first launch after an Instagram update |
+| Settings | Changes from the companion and from the Instagram sheet, changes while an app is closed, restart and sync |
+| Privacy | DM/story seen, typing, screenshots, view-once, disappearing messages and manual mark-as-read |
+| Chat data | Hidden chats, unsent logs, DM lock with right/wrong passcode, lockout and restore |
+| Feed/UI | Ad/suggestion filters, following-only feed, reels/story blocking, DM exception, Meta AI removal, zoom and menus |
+| Media | Photo, video, reel, story, carousel, profile picture, audio muxing, naming, SAF/default folder |
+| Helpers | Caption/comment copy (including without hashtags), external links, mention/follow indicators, autoplay and double-tap preferences |
+| Extras | Airplane mode (live toggle), story posting time, Reels tap-pause/auto-scroll/scroll lock, swipe-to-camera, share-sheet group, unlimited accounts, startup tab, share domain |
+| Theme/location | Theme, fonts, Dynamic Colors; location picker, recent places, spoofing without the real permission, and their effect in Instagram |
+| Developer settings | JSON import/export, broken/incompatible files and unauthorized calls |
 
-Bu tablo başlangıç kapsamıdır; kesin özellik listesi Faz 0 envanterindeki her anahtarı kapsamalıdır.
+This table is the starting scope; the final list must cover every key in the Phase 0 inventory.
+Extras that could not be verified on the reference device (tap-pause and auto-scroll are already
+Instagram's default there; unlimited accounts, share-sheet group, comment/DM double tap and the
+share domain need outward actions to test) stay marked "not verified" until tested.
 
-## 9. Performans ve boyut kabul ölçütleri
+## 10. Performance and size acceptance criteria
 
-Aşağıdaki eşikler başlangıçta önerilen inceleme eşikleridir; mevcut ölçüm sonucu veya performans garantisi değildir. Faz 0'da cihaz gürültüsü ölçülür ve eşikler sabitlenir. Başarısız sonuçtan sonra gerekçesiz gevşetilmez.
+The thresholds below are suggested review thresholds; they are not current measurement results or
+performance guarantees. Device noise is measured in Phase 0 and the thresholds are then fixed.
+They are not loosened after a failure without a reason.
 
-| Ölçüm | Yöntem | Önerilen kapı |
+| Measurement | Method | Suggested gate |
 | --- | --- | --- |
-| Cold/warm başlangıç | Aynı cihaz/sürümlerde en az 10 tekrar; median, dağılım ve ham sonuç | Tekrarlanabilir median artışı %5'i aşarsa inceleme ve gerekçe olmadan ilerleme yok |
-| Güncelleme sonrası ilk açılış | DexKit cache temizliği kontrollü, aynı senaryo | Yeni ANR yok; keşif süresi kaydedilir |
-| Warm start DexKit | Log/izleme ile bridge açılış sayısı | Cache geçerliyken gereksiz bridge açılışı yok |
-| Kaydırma | Sabit feed/reels senaryosu, frame süreleri ve jank ölçümü | Tekrarlanabilir gerileme açıklanıp giderilmeden kabul yok |
-| Bellek | Companion ve Instagram için ayrı PSS/heap; aynı iş yükü | Sürekli büyüme veya lifecycle sızıntısı yok; kararlı PSS artışı %10'u aşarsa inceleme |
-| Hook maliyeti | Sık callback örneklerinde süre/allocation profili | Özellik kapalıyken yeni I/O, keşif veya allocation yoğun yol yok |
-| İndirme | Aynı medya ve ağ koşulları; süre, hata, iptal ve çıktı doğruluğu | Sınırsız concurrency, bozuk/eksik çıktı veya kaynak sızıntısı yok |
-| APK/method sayısı | Aynı build türü ve imza koşulunda karşılaştırma | Her artış kaydedilir; APK artışı %10'u aşarsa bağımlılık incelemesi |
-| Derleme süresi | Aynı makinede temiz ve artımlı derleme ayrı | Yeni darboğazlar kaydedilir; tekrarlanabilir %20 artış incelenir |
+| Cold/warm start | At least 10 runs on the same device/versions; median, spread and raw results | No progress without review and a reason if the reproducible median grows by more than 5% |
+| First launch after an update | Controlled DexKit cache clearing, same scenario | No new ANR; discovery time recorded |
+| Warm-start DexKit | Bridge opening count from logs/tracing | No needless bridge opening while the cache is valid |
+| Scrolling | Fixed feed/reels scenario, frame times and jank | No reproducible regression accepted before it is explained and fixed |
+| Memory | Separate PSS/heap for companion and Instagram; same workload | No steady growth or lifecycle leak; review if stable PSS grows by more than 10% |
+| Hook cost | Time/allocation profile of frequent callbacks | No new I/O, discovery or allocation-heavy path while a feature is off |
+| Downloads | Same media and network conditions; duration, errors, cancel and output correctness | No unbounded concurrency, broken/incomplete output or resource leak |
+| APK/method count | Same build type and signing conditions | Every increase recorded; dependency review if the APK grows by more than 10% |
+| Build time | Clean and incremental builds separately on the same machine | New bottlenecks recorded; a reproducible 20% increase is reviewed |
 
-Küçük örneklemden güvenilir p95/p99 sonucu çıkarılmaz; tail latency kararı için daha fazla tekrar yapılır. Ağ içeriği, termal durum ve önbellek farkları karşılaştırmayı bozuyorsa ölçüm yeniden tasarlanır. Dil değişimi için hız kazanımı iddiası yalnızca bu ölçümlerle desteklenirse yazılır.
+No reliable p95/p99 is derived from small samples; more runs are made for tail-latency decisions.
+If network content, thermal state or cache differences distort a comparison, the measurement is
+redesigned. A speed gain from the language change is claimed only if these measurements support it.
 
-## 10. CI, sürümleme ve APK dağıtımı
+## 11. CI, versioning and APK distribution
 
-### 10.1 CI işleri
+### 11.1 CI work
 
-- [ ] Mevcut workflow yalnızca `main`/`0.4` push'ları, `main` hedefli PR'lar ve manuel çalıştırmaları kapsıyor; migration dalının gerekli kontrolleri otomatik aldığını doğrula.
-- [ ] JDK/Gradle/Kotlin sürümlerini sabitle; wrapper doğrulamasını koru.
-- [ ] Java ve Kotlin testleri, lint ve debug derlemesini zorunlu kontrol yap.
-- [ ] Paketleme değişikliklerinde release derlemesini ekle.
-- [ ] Lint ve test raporlarını başarısızlıkta da artifact olarak sakla.
-- [ ] Güvenilmeyen PR'lara yayın token'ı veya signing secret açma.
-- [ ] Build işlerinde salt-okuma iznini koru; yayın için yazma iznini yalnızca ilgili işe ver.
+- [ ] The current workflow only covers pushes to `main`/`0.4`, PRs targeting `main` and manual runs;
+  make sure the migration branch gets the required checks automatically.
+- [ ] Pin the JDK/Gradle/Kotlin versions; keep wrapper validation (the wrapper already pins the
+  distribution SHA-256).
+- [ ] Make Java and Kotlin tests, lint and the debug build required checks.
+- [ ] Add a release build for packaging changes.
+- [ ] Keep lint and test reports as artifacts on failure too.
+- [ ] Never expose publishing tokens or signing secrets to untrusted PRs.
+- [ ] Keep read-only permissions in build jobs; grant write permission only to the publishing job.
 
-### 10.2 Sürüm politikası
+### 11.2 Versioning policy
 
-- Test sürümleri GitHub prerelease olarak işaretlenir; kararlı sürümün “latest” işaretini değiştirmez.
-- Etiket, sürüm adı ve `versionCode` politikası Faz 0'da belirlenir. Sonraki dağıtılacak güncellemelerde `versionCode` artar.
-- Mevcut `v0.7.0-test.1` APK'sının dahili sürümü `0.7.0` / `17`'dir; ileride test sürümünün uygulama içinde de ayırt edilmesi sağlanır.
-- Aynı commit'ten üretilmiş APK, SHA-256, imza sertifikası bilgisi, test özeti ve bilinen sorunlar birlikte yayımlanır.
-- Test ve kararlı sürümler için imza stratejisi belirlenir. Geçici CI debug anahtarlarının güncellemeyi bozabileceği dikkate alınır; anahtarlar güvenli biçimde saklanır.
-- Farklı applicationId ile yan yana test kurulumu istenirse signature permission, IPC hedefleri, provider authority ve framework scope etkileri için ayrı tasarım yapılır.
-- APK imzası `apksigner verify` ile kontrol edilir; asset yüklenmesi ve release'in prerelease/draft durumu yayın sonunda doğrulanır.
+- Test builds are marked as GitHub prereleases and do not move the stable "latest" marker.
+- The tag, version name and `versionCode` policy is set in Phase 0. `versionCode` increases for
+  every distributed update.
+- The current test build is `0.7.0-test.2` / `18`, so test builds are distinguishable inside the
+  app.
+- The APK, its SHA-256, the signing certificate details, a test summary and known issues are
+  published together, all from the same commit.
+- A signing strategy for test and stable builds is decided. Temporary CI debug keys can break
+  updates; keys are stored securely.
+- If a side-by-side test install with a different applicationId is wanted, the effects on the
+  signature permission, IPC targets, provider authority and framework scope get a separate design.
+- The APK signature is checked with `apksigner verify`; asset upload and the prerelease/draft state
+  of the release are verified at the end of publishing.
 
-### 10.3 Sürüm notunda zorunlu bilgiler
+### 11.3 Required release note content
 
-- Kaynak commit'i, tag, uygulama sürümü ve build türü.
-- Bu sürümde dönüştürülen alanlar ve kullanıcıya yansıyan değişiklikler.
-- Minimum Android ve gereken libxposed API desteği.
-- Gerçekte test edilen cihaz/Instagram/framework kombinasyonları.
-- Bilinen sorunlar, test edilmeyen alanlar ve veri uyumluluğu.
-- İmza uyumluluğu, yükseltme ve gerekiyorsa yedekleme adımları.
-- Artifact checksum'u ve sorun bildirme yöntemi.
+- Source commit, tag, app version and build type.
+- Areas converted in this release and user-visible changes.
+- Minimum Android and the required libxposed API support (101 minimum; which features need 102).
+- Device/Instagram/framework combinations actually tested.
+- Known issues, untested areas and data compatibility.
+- Signing compatibility, upgrade and, if needed, backup steps.
+- Artifact checksum and how to report issues.
 
-## 11. Geri dönüş ve sorun yönetimi
+## 12. Rollback and issue handling
 
-### 11.1 Geri dönüş tetikleyicileri
+### 12.1 Rollback triggers
 
-- Yeni crash/ANR veya modülün yüklenememesi.
-- Ayar, mesaj kaydı veya medya kaybı/bozulması.
-- Yetkisiz IPC erişimi ya da gizli verinin dışarı çıkması.
-- Tekrarlanabilir ve kabul edilmemiş performans gerilemesi.
-- Yaygın kurulum/imza hatası veya temel özelliğin çalışmaması.
+- A new crash/ANR or the module failing to load.
+- Loss or corruption of settings, message logs or media.
+- Unauthorized IPC access or leakage of secret data.
+- A reproducible, unaccepted performance regression.
+- A widespread install/signing failure or a core feature not working.
 
-### 11.2 Uygulama yöntemi
+### 12.2 Procedure
 
-1. Sorunu kaynak commit'i ve cihaz matrisiyle eşleştir; yeni yayını durdur veya sorunlu sürümü açıkça işaretle.
-2. İlgili dönüşüm PR'ını revert et; kullanıcıların eski APK'ya doğrudan düşebileceğini varsayma.
-3. Tercihen önceki kararlı davranışı geri getiren, daha yüksek `versionCode` içeren aynı anahtarla imzalı düzeltme sürümü üret.
-4. Şema değişmişse ters migration veya önceden doğrulanmış yedek geri yükleme yolunu kullan.
-5. Yeniden kurulum gerekiyorsa veri kaybı ve imza koşullarını sürüm notunda açıkla.
-6. Regresyon testi ekle ve geri dönüş APK'sını da temel kontrollerden geçir.
+1. Match the issue to its source commit and device matrix; stop new releases or clearly mark the
+   affected release.
+2. Revert the related conversion PR; do not assume users can simply downgrade to an older APK.
+3. Preferably ship a fix release signed with the same key, with a higher `versionCode`, that
+   restores the previous stable behavior.
+4. If the schema changed, use the reverse migration or a previously verified backup restore path.
+5. If a reinstall is needed, explain data loss and signing conditions in the release notes.
+6. Add a regression test and put the rollback APK through the baseline checks too.
 
-Kaynak kodunu revert etmek kullanıcı verisini kendiliğinden eski haline getirmez. Riskli veri şeması değişiklikleri bu nedenle dil dönüşümünden ayrı tutulur.
+Reverting source code does not restore user data by itself. Risky data schema changes are
+therefore kept separate from language conversions.
 
-### 11.3 Önceliklendirme
+### 12.3 Prioritization
 
-| Öncelik | Örnek | Yayın kararı |
+| Priority | Example | Release decision |
 | --- | --- | --- |
-| P0 | Veri kaybı, güvenlik açığı, yaygın açılış çökmesi | Yayını durdur; acil düzeltme/geri dönüş |
-| P1 | Temel özellik çalışmıyor, tekrarlanabilir ANR, kurulum engeli | Kararlı yayını engeller |
-| P2 | Sınırlı kombinasyonda bozulma, kullanılabilir workaround | Etki ve destek kapsamına göre karar, bilinen sorun kaydı |
-| P3 | Kozmetik sorun, küçük belge/UX eksiği | Planlı bakım |
+| P0 | Data loss, security hole, widespread launch crash | Stop releases; urgent fix/rollback |
+| P1 | Core feature broken, reproducible ANR, install blocker | Blocks a stable release |
+| P2 | Breakage in a limited combination, usable workaround | Decided by impact and support scope, known-issue entry |
+| P3 | Cosmetic issue, small doc/UX gap | Planned maintenance |
 
-## 12. Risk kaydı
+## 13. Risk register
 
-| Risk | Erken belirti | Önlem / geri dönüş |
+| Risk | Early sign | Mitigation / rollback |
 | --- | --- | --- |
-| Kotlin runtime/ClassLoader uyuşmazlığı | Modül yüklenirken sınıf/metot bulunamaması | Faz 1 cihaz kapısı, host bağımlılığına güvenmeme, altyapı revert'i |
-| Java API imzasının değişmesi | Reflection veya Java çağrıları kırılır | İmza/sözleşme testleri, eski facade'ı koruma |
-| Yaşam döngüsü hatası | Yinelenen istek, kapanmış ekrana callback | Scope sahipliği, iptal ve recreation testleri |
-| Ayar uyuşmazlığı | Companion ile Instagram farklı değer gösterir | Alan bazında otorite ve offline sync testleri |
-| Veri formatı bozulması | Eski yedek okunamıyor veya varsayılanlar değişiyor | Fixture testleri, sürümlü migration, atomik yazma |
-| Güvenlik gerilemesi | İzin/nonce doğrulaması atlanıyor | Negatif IPC testleri, exported component incelemesi |
-| Sıcak yol yükü | Kaydırma takılması, allocation artışı | Hook çekirdeğini koruma, profil ve cache kontrolleri |
-| APK/derleme büyümesi | Runtime veya UI bağımlılıkları gereksiz artıyor | Minimal bağımlılık, Compose/DI'yi ayrı karar olarak tutma |
-| Instagram güncellemesi | Obfuscated hedefler bulunamıyor | Sürüm matrisi, cache invalidation, özelliği güvenli devre dışı bırakma |
-| Çok geniş dönüşüm | Sorunun hangi değişiklikten geldiği belirsiz | Küçük PR, tek sorumluluk, faz bazlı prerelease |
-| İmza süreksizliği | Güncelleme kurulamaz | Sabit signing stratejisi ve gerçek yükseltme testi |
+| Kotlin runtime/ClassLoader mismatch | Class/method not found while the module loads | Phase 1 device gate, no reliance on host dependencies, revert of the setup |
+| Java API signature changes | Reflection or Java calls break | Signature/contract tests, keep the old facade |
+| Lifecycle bugs | Duplicate requests, callbacks into closed screens | Scope ownership, cancellation and recreation tests |
+| Settings mismatch | Companion and Instagram show different values | Per-field authority and offline sync tests |
+| Data format breakage | Old backups unreadable or defaults changed | Fixture tests, versioned migration, atomic writes |
+| Security regression | Permission/nonce checks skipped | Negative IPC tests, exported component review |
+| Hot-path load | Scroll stutter, more allocations | Keep the hook core, profiling and cache checks |
+| APK/build growth | Runtime or UI dependencies grow needlessly | Minimal dependencies, Compose/DI as separate decisions |
+| Instagram update | Obfuscated targets not found | Version matrix, cache invalidation, disable the feature safely |
+| Framework API mismatch | API 102 path runs on an API 101 framework | Version checks, lint, tests on both API levels (section 7) |
+| Too broad a change | Unclear which change caused an issue | Small PRs, single responsibility, prerelease per phase |
+| Signing discontinuity | Update cannot be installed | Fixed signing strategy and a real upgrade test |
 
-## 13. İlk iş listesi ve PR sırası
+## 14. First work items and PR order
 
-| Sıra | İş | Önkoşul | Somut çıktı |
+| Order | Work | Prerequisite | Concrete output |
 | --- | --- | --- | --- |
-| 1 | Başlangıç commit'i ve özellik envanteri | Mevcut çalışma ağacının kapsamı net | Baseline/test matrisi |
-| 2 | Kotlin build desteği | Faz 0 tamam | Sürüm kataloğu, plugin, JVM hedefi, karma dil doğrulaması |
-| 3 | Saf mantık pilotu | Faz 1 cihaz/CI kapısı | Küçük Kotlin bileşeni ve Java uyumluluk testleri |
-| 4 | İlk companion ekranı | Pilot başarılı | XML korunmuş Kotlin ekranı ve yaşam döngüsü doğrulaması |
-| 5 | Güncelleme kontrolü | Scope politikası belirlenmiş | Test edilmiş iptal/timeout ve ekran entegrasyonu |
-| 6 | Diğer companion ekranları | Önceki ekran kararlı | Ekran başına küçük PR ve test kaydı |
-| 7 | Backup/restore | Veri fixture'ları hazır | Uyumluluk ve bozuk veri testleri |
-| 8 | İndirme koordinasyonu | Servis/FGS test cihazları hazır | Sınırlı concurrency, iptal, hata ve çıktı testleri |
-| 9 | Ayar/IPC adaptörleri | Envanter ve sözleşmeler hazır | Tipli sınırlar ve uçtan uca sync doğrulaması |
-| 10 | Kararlılaştırma | İlgili fazlar tamam | Ölçüm raporu, prerelease, kararlı yayın kararı |
+| 1 | Baseline commit and feature inventory | Scope of the committed features clear | Baseline/test matrix |
+| 2 | API 102 steps 0–1 (framework version, hook IDs) | Baseline recorded | Version shown in the companion, hook IDs in logs |
+| 3 | Kotlin build support | Phase 0 done | Version catalog, built-in Kotlin, JVM target, mixed-language verification |
+| 4 | Pure-logic pilot | Phase 1 device/CI gate | Small Kotlin component and Java compatibility tests |
+| 5 | First companion screen | Successful pilot | Kotlin screen with XML kept, lifecycle verification |
+| 6 | Update check | Scope policy defined | Tested cancel/timeout and screen integration |
+| 7 | Other companion screens | Previous screen stable | Small PR and test record per screen |
+| 8 | Backup/restore | Data fixtures ready | Compatibility and broken-data tests |
+| 9 | Download coordination | Service/FGS test devices ready | Bounded concurrency, cancel, error and output tests |
+| 10 | Settings/IPC adapters | Inventory and contracts ready | Typed boundaries and end-to-end sync verification |
+| 11 | API 102 steps 2–3 (running targets, detach) | Step 0 confirms an API 102 framework | Status card row, detach verified on device |
+| 12 | Stabilization | Related phases done | Measurement report, prerelease, stable release decision |
 
-Bir aşamanın tek PR olması gerekmez. Bir PR da birden fazla bağımsız aşamayı kapsamaz. Bağımlılık gerektirmeyen test hazırlığı erken yapılabilir; güvenlik düzeltmeleri geçiş takvimini beklemez.
+API 102 steps 4–5 (hot reload) are scheduled only when development speed makes them worth their
+risk. A phase does not have to be one PR, and one PR never covers several independent phases. Test
+preparation without dependencies can start early; security fixes never wait for the migration
+schedule.
 
-## 14. Her dönüşüm PR'ı için tamamlanma ölçütleri
+## 15. Completion criteria for every conversion PR
 
-- [ ] Değişikliğin amacı ve Kotlin'e geçiş gerekçesi açık.
-- [ ] Etkilenen süreç, thread ve ClassLoader sınırı belirlenmiş.
-- [ ] Java çağrıları, reflection, manifest ve serialization sözleşmeleri incelenmiş.
-- [ ] Ayar/veri/IPC davranışı korunmuş veya ayrı migration belgelenmiş.
-- [ ] Gerekli regresyon testleri, lint ve derleme geçmiş.
-- [ ] Riskle orantılı cihaz testi yapılmış; yapılmayanlar açıkça belirtilmiş.
-- [ ] Yeni bağımlılıkların gerekçesi ve maliyeti kaydedilmiş.
-- [ ] Performansı etkileyen değişiklikler baseline ile karşılaştırılmış.
-- [ ] Geri dönüş yöntemi uygulanabilir ve veri uyumluluğu belli.
-- [ ] Kullanıcıya yansıyan değişiklikler ve ilgili belgeler güncellenmiş.
-- [ ] İlgisiz biçimlendirme, toplu yeniden adlandırma ve özellik değişiklikleri ayrılmış.
+- [ ] The purpose of the change and the reason for moving to Kotlin (or adopting an API 102
+  feature) are clear.
+- [ ] The affected process, thread and ClassLoader boundary are identified.
+- [ ] Java calls, reflection, manifest and serialization contracts are reviewed.
+- [ ] Settings/data/IPC behavior is kept, or a separate migration is documented.
+- [ ] Required regression tests, lint and the build pass.
+- [ ] Device testing proportional to the risk was done; skipped parts are stated explicitly.
+- [ ] The reason for and cost of new dependencies are recorded.
+- [ ] Changes that affect performance are compared with the baseline.
+- [ ] The rollback method is workable and data compatibility is known.
+- [ ] User-visible changes and related documents are updated.
+- [ ] Unrelated formatting, bulk renames and feature changes are kept separate.
 
-## 15. İlerleme takibi ve açık kararlar
+## 16. Progress tracking and open decisions
 
-Her fazın kaydı şu alanları içermelidir:
+Each phase record contains:
 
-| Alan | Beklenen kayıt |
+| Field | Expected record |
 | --- | --- |
-| Durum | Başlamadı / sürüyor / doğrulama bekliyor / tamamlandı |
-| Sorumlu | Uygulama ve inceleme sorumlusu |
-| Kaynak | Issue/PR ve commit bağlantısı |
-| Kanıt | CI, cihaz testi, ölçüm ve artifact bağlantısı |
-| Kalan işler | Açık hata, eksik cihaz ve kararlar |
-| Geri dönüş | Revert/düzeltme sürümü ve veri uyumluluğu |
+| Status | Not started / in progress / awaiting verification / done |
+| Owner | Implementation and review owners |
+| Source | Issue/PR and commit links |
+| Evidence | CI, device test, measurement and artifact links |
+| Remaining work | Open bugs, missing devices and decisions |
+| Rollback | Revert/fix release and data compatibility |
 
-Uygulamadan önce çözülecek kararlar:
+Decisions to settle before implementation:
 
-- [ ] Temiz başlangıç commit'i ve dahil edilecek mevcut özellikler.
-- [ ] Mevcut toolchain ile doğrulanmış Kotlin sürümü.
-- [ ] Pilot bileşen ve ilk ekran.
-- [ ] Test cihazları ve destek iddiasının sınırları.
-- [ ] Test/kararlı imza anahtarı ve `versionCode` stratejisi.
-- [ ] Ölçüm eşikleri, release test süresi ve sorumlular.
+- [ ] Clean baseline commit and the committed features it includes.
+- [ ] A Kotlin version verified with the current toolchain.
+- [ ] Pilot component and first screen.
+- [ ] Test devices and the limits of the support claim.
+- [ ] Test/stable signing keys and the `versionCode` strategy.
+- [ ] Measurement thresholds, release test period and owners.
+- [ ] Whether the test device's framework supports API 102, and whether hot reload is worth doing.
 
-Bu kararlar dışındaki olağan uygulama ayrıntıları mevcut mimari ve katkı kuralları doğrultusunda çözülür. Yeni mimari tercih doğduğunda gerekçesi, alternatifleri ve etkisi kısa bir karar kaydına eklenir.
+Ordinary implementation details beyond these decisions follow the existing architecture and
+contributing rules. When a new architecture choice comes up, its reasoning, alternatives and impact
+go into a short decision record.
 
-## 16. Başvuru kaynakları
+## 17. References
 
-- [Android — Mevcut uygulamaya Kotlin ekleme](https://developer.android.com/kotlin/add-kotlin)
-- [Kotlin — Java birlikte kullanımı](https://kotlinlang.org/docs/java-interop.html)
-- [Morphe Patcher — çalışma modeli](https://github.com/MorpheApp/morphe-patcher)
+- [Android — Add Kotlin to an existing app](https://developer.android.com/kotlin/add-kotlin)
+- [Kotlin — Java interoperability](https://kotlinlang.org/docs/java-interop.html)
+- [libxposed on Maven Central](https://repo.maven.apache.org/maven2/io/github/libxposed/)
+- [Morphe Patcher — how it works](https://github.com/MorpheApp/morphe-patcher)
 
-Bu bağlantılar yaklaşımın dayanağıdır. Uygulama başladığında güncel sürüm uyumluluğu ayrıca doğrulanmalı; örnek bir dokümandaki sürüm numarası doğrudan projeye kopyalanmamalıdır.
+These links are the basis of the approach. When implementation starts, current version
+compatibility must be verified again; a version number from an example document must not be copied
+into the project as is.

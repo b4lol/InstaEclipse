@@ -30,7 +30,8 @@ All notable changes to this project are documented here. Format based on
     embed previews).
 - "Disable double-tap to like" now also covers comments and DMs; a reaction picked from the
   long-press menu still works.
-- `ROADMAP.md`: plan for a gradual Java/Kotlin hybrid migration.
+- `ROADMAP.md` (English): plan for a gradual Java/Kotlin hybrid migration and for adopting the
+  libxposed API 102 additions (hook IDs, running targets, detach, hot reload).
 
 ### Changed — Location spoofing
 - Every location delivery path is spoofed: platform `LocationManager` listeners,
