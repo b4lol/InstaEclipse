@@ -139,7 +139,7 @@ public class SettingsManager {
         editor.putBoolean("hideChatButton", FeatureFlags.hideChatButton);
         editor.putBoolean("mediaActions", FeatureFlags.mediaActions);
         editor.putBoolean("saveCommentMedia", FeatureFlags.saveCommentMedia);
-        editor.putBoolean("translateComments", FeatureFlags.translateComments);
+        editor.putBoolean("translateText", FeatureFlags.translateText);
         editor.putBoolean("highResolutionImages", FeatureFlags.highResolutionImages);
         editor.putString("navigationOrder", FeatureFlags.navigationOrder);
         editor.putBoolean("profileFollowLabel", FeatureFlags.profileFollowLabel);
@@ -266,7 +266,8 @@ public class SettingsManager {
         FeatureFlags.hideChatButton = prefs.getBoolean("hideChatButton", false);
         FeatureFlags.mediaActions = prefs.getBoolean("mediaActions", false);
         FeatureFlags.saveCommentMedia = prefs.getBoolean("saveCommentMedia", false);
-        FeatureFlags.translateComments = prefs.getBoolean("translateComments", false);
+        // Test builds before 0.7.0 stored this as "translateComments" (comments only).
+        FeatureFlags.translateText = prefs.getBoolean("translateText", prefs.getBoolean("translateComments", false));
         FeatureFlags.highResolutionImages = prefs.getBoolean("highResolutionImages", false);
         FeatureFlags.navigationOrder = prefs.getString("navigationOrder", "");
         FeatureFlags.reelsDisableTapPause = prefs.getBoolean("reelsDisableTapPause", false);

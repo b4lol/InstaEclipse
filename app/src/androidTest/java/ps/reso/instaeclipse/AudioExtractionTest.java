@@ -60,8 +60,11 @@ public class AudioExtractionTest {
     }
 
     private static File fixture(String name) throws Exception {
+        // Assets live in the test APK, but the test process runs as the target app and can only
+        // write to the target's cache directory.
         Context test = InstrumentationRegistry.getInstrumentation().getContext();
-        File file = File.createTempFile("audio-fixture", ".mp4", test.getCacheDir());
+        Context target = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        File file = File.createTempFile("audio-fixture", ".mp4", target.getCacheDir());
         try (InputStream in = test.getAssets().open(name); FileOutputStream out = new FileOutputStream(file)) {
             byte[] buffer = new byte[8192];
             int count;

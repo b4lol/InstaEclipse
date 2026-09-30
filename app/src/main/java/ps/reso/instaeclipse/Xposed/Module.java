@@ -426,6 +426,7 @@ public class Module extends XposedModule {
         installExtra("OnboardingPrompts", () -> new ps.reso.instaeclipse.mods.extras.OnboardingPromptHook().install(dexKitBridge, classLoader));
         installExtra("NotificationRegistration", () -> new ps.reso.instaeclipse.mods.extras.NotificationRegistrationHook().install());
         installExtra("VoiceMessageDownload", () -> new ps.reso.instaeclipse.mods.extras.VoiceMessageDownloadHook().install(dexKitBridge, classLoader));
+        installExtra("DirectMessageTranslate", () -> new ps.reso.instaeclipse.mods.extras.DirectMessageTranslateHook().install(dexKitBridge, classLoader));
         installExtra("NavigationTabs", () -> new ps.reso.instaeclipse.mods.extras.NavigationTabsHook().install(dexKitBridge, classLoader));
         installExtra("ExactTimestamps", () -> new ps.reso.instaeclipse.mods.extras.ExactTimestampHook().install());
         installExtra("UnlimitedAccounts", () -> new ps.reso.instaeclipse.mods.extras.AccountLimitHook().install(dexKitBridge, classLoader));

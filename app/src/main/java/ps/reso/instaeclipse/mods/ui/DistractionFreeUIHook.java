@@ -18,6 +18,8 @@ import ps.reso.instaeclipse.utils.log.ModuleLog;
  * not block), so they stay visible. To make them actually disappear we collapse the real Views by
  * their stable public resource names (verified from the live view tree, never obfuscated X.* ids):
  *   - story tray  -> com.instagram.android:id/reels_tray_container   (disableStories or hideStoriesTray)
+ *   - overlay tray-> com.instagram.android:id/overlay_stories_tray_container (same flags; the copy IG
+ *                    floats over the feed when scrolling back to the top)
  *   - Reels tab   -> com.instagram.android:id/clips_tab              (gated on disableReels)
  *
  * Armed from {@link UIHookManager#setupHooks} on every resume; a one-time global-layout listener per
@@ -29,6 +31,7 @@ public class DistractionFreeUIHook {
 
     private static volatile boolean idsResolved = false;
     private static int trayId = 0;      // reels_tray_container (story tray)
+    private static int overlayTrayId = 0; // overlay_stories_tray_container (tray shown on scroll-up)
     private static int notesTrayId = 0;
     private static int clipsTabId = 0;  // clips_tab (Reels bottom-nav tab)
 
@@ -47,11 +50,13 @@ public class DistractionFreeUIHook {
             Resources res = a.getResources();
             String pkg = a.getPackageName();
             trayId = res.getIdentifier("reels_tray_container", "id", pkg);
+            overlayTrayId = res.getIdentifier("overlay_stories_tray_container", "id", pkg);
             clipsTabId = res.getIdentifier("clips_tab", "id", pkg);
             notesTrayId = ps.reso.instaeclipse.utils.ui.ResIds.id(a, "cf_hub_recycler_view");
             if (notesTrayId != 0) ps.reso.instaeclipse.utils.feature.FeatureStatusTracker.setHooked("HideNotesTray");
             idsResolved = true;
-            ModuleLog.line("(IE|DistractUI) resolved: tray=" + trayId + " clipsTab=" + clipsTabId);
+            ModuleLog.line("(IE|DistractUI) resolved: tray=" + trayId + " overlayTray=" + overlayTrayId
+                    + " clipsTab=" + clipsTabId);
         } catch (Throwable ignored) {}
     }
 
@@ -78,6 +83,8 @@ public class DistractionFreeUIHook {
                 updateAllById((ViewGroup) root, trayId, FeatureFlags.disableStories || FeatureFlags.hideStoriesTray);
                 if (FeatureFlags.hideStoriesTray) FeatureStatusTracker.setHooked("HideStoriesTray");
             }
+            if (overlayTrayId != 0)
+                updateAllById((ViewGroup) root, overlayTrayId, FeatureFlags.disableStories || FeatureFlags.hideStoriesTray);
             if (clipsTabId != 0) updateAllById((ViewGroup) root, clipsTabId, FeatureFlags.disableReels);
             if (notesTrayId != 0) updateAllById((ViewGroup) root, notesTrayId, FeatureFlags.hideNotesTray);
         } catch (Throwable ignored) {}

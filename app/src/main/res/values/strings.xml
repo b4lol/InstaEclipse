@@ -584,7 +584,18 @@
     <string tools:ignore="MissingTranslation" name="ie_hideChatButton">Hide the Hide chat button</string>
     <string tools:ignore="MissingTranslation" name="ie_mediaActions">Extra media actions (audio, info, external app)</string>
     <string tools:ignore="MissingTranslation" name="ie_saveCommentMedia">Save media in comments</string>
-    <string tools:ignore="MissingTranslation" name="ie_translateComments">Open comments in a translation or text app</string>
+    <string tools:ignore="MissingTranslation" name="ie_translateText">Translate comments, captions and DMs (Google / Yandex)</string>
+    <string tools:ignore="MissingTranslation" name="ie_translate_title">Translate</string>
+    <string tools:ignore="MissingTranslation" name="ie_translate_google">Translate with Google</string>
+    <string tools:ignore="MissingTranslation" name="ie_translate_yandex">Translate with Yandex</string>
+    <string tools:ignore="MissingTranslation" name="ie_translate_other">Other text apps</string>
+    <string tools:ignore="MissingTranslation" name="ie_translating">Translating…</string>
+    <string tools:ignore="MissingTranslation" name="ie_translate_failed">Couldn\'t translate. Try opening it in Google Translate.</string>
+    <string tools:ignore="MissingTranslation" name="ie_translate_open_google">Open in Google Translate</string>
+    <string tools:ignore="MissingTranslation" name="ie_translate_result_title">Google Translate · %1$s → %2$s</string>
+    <string tools:ignore="MissingTranslation" name="ie_translate_copy">Copy</string>
+    <string tools:ignore="MissingTranslation" name="ie_translate_copied">Translation copied</string>
+    <string tools:ignore="MissingTranslation" name="ie_translate_caption">Translate caption</string>
     <string tools:ignore="MissingTranslation" name="ie_highResolutionImages">Load highest resolution images</string>
     <string tools:ignore="MissingTranslation" name="ie_more_features">More features</string>
     <string tools:ignore="MissingTranslation" name="ie_navigation_order">Navigation order</string>
@@ -599,7 +610,6 @@
     <string tools:ignore="MissingTranslation" name="ie_no_media">No supported media found</string>
     <string tools:ignore="MissingTranslation" name="ie_media_failed">Could not complete the media action</string>
     <string tools:ignore="MissingTranslation" name="ie_download">Download</string>
-    <string tools:ignore="MissingTranslation" name="ie_share_text">Translate / process text</string>
     <string tools:ignore="MissingTranslation" name="ie_create_tab">Create</string>
     <string tools:ignore="MissingTranslation" name="ie_media_item">Select media</string>
     <string tools:ignore="MissingTranslation" name="ie_copy_image">Copy image to clipboard (also saves a copy)</string>

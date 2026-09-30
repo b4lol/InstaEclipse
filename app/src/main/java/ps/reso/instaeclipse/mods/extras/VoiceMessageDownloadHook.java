@@ -72,7 +72,7 @@ public final class VoiceMessageDownloadHook {
         FeatureStatusTracker.setHooked("DownloadVoiceMessages");
     }
 
-    private static Activity activity(Object caller) {
+    static Activity activity(Object caller) {
         if (caller == null) return null;
         for (Field f : caller.getClass().getDeclaredFields()) {
             if (Modifier.isStatic(f.getModifiers()) || !Activity.class.isAssignableFrom(f.getType())) continue;
@@ -146,7 +146,7 @@ public final class VoiceMessageDownloadHook {
             return new Path(caller, resolver, audio, media, source, url);
         } catch (ReflectiveOperationException | RuntimeException missing) { return null; }
     }
-    private static Field field(String value, ClassLoader cl) throws ReflectiveOperationException {
+    static Field field(String value, ClassLoader cl) throws ReflectiveOperationException {
         String[] parts = value.split("#", 2);
         Field field = cl.loadClass(parts[0]).getDeclaredField(parts[1]); field.setAccessible(true); return field;
     }

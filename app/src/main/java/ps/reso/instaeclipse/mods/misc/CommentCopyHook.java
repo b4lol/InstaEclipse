@@ -447,7 +447,7 @@ public class CommentCopyHook {
     private static final MethodHook SHOW_MENU_HOOK = new MethodHook() {
         @Override
         protected void beforeHookedMethod(MethodHookParam param) {
-            if (!FeatureFlags.enableCopyComment && !FeatureFlags.saveCommentMedia && !FeatureFlags.translateComments && !FeatureFlags.searchComments) return;
+            if (!FeatureFlags.enableCopyComment && !FeatureFlags.saveCommentMedia && !FeatureFlags.translateText && !FeatureFlags.searchComments) return;
             try {
                 Activity ctx = currentActivity;
                 if (ctx == null) return;
@@ -464,7 +464,7 @@ public class CommentCopyHook {
                 if (comment == null) return;
 
                 String text = findLongestTextField(comment);
-                if (FeatureFlags.saveCommentMedia || FeatureFlags.translateComments || FeatureFlags.searchComments) {
+                if (FeatureFlags.saveCommentMedia || FeatureFlags.translateText || FeatureFlags.searchComments) {
                     java.util.List<String> urls = FeatureFlags.saveCommentMedia
                             ? ps.reso.instaeclipse.mods.media.CommentMediaResolver.urls(comment)
                             : java.util.Collections.emptyList();
@@ -483,21 +483,10 @@ public class CommentCopyHook {
             labels.add(I18n.t(ctx, R.string.ig_comment_copy_title));
             actions.add(() -> showCopyPopup(ctx, text));
         }
-        if (text != null && !text.isBlank() && FeatureFlags.translateComments) {
-            labels.add(I18n.t(ctx, R.string.ie_share_text));
-            actions.add(() -> {
-                try {
-                    android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_PROCESS_TEXT)
-                            .setType("text/plain")
-                            .putExtra(android.content.Intent.EXTRA_PROCESS_TEXT, text)
-                            .putExtra(android.content.Intent.EXTRA_PROCESS_TEXT_READONLY, true);
-                    ctx.startActivity(android.content.Intent.createChooser(intent, I18n.t(ctx, R.string.ie_share_text)));
-                } catch (android.content.ActivityNotFoundException ignored) {
-                    android.widget.Toast.makeText(ctx, I18n.t(ctx, R.string.ie_no_text_app),
-                            android.widget.Toast.LENGTH_SHORT).show();
-                }
-            });
-            FeatureStatusTracker.setHooked("TranslateComments");
+        if (text != null && !text.isBlank() && FeatureFlags.translateText) {
+            labels.add(I18n.t(ctx, R.string.ie_translate_title));
+            actions.add(() -> ps.reso.instaeclipse.mods.translate.TextTranslator.show(ctx, text));
+            FeatureStatusTracker.setHooked("TranslateText");
         }
         if (!urls.isEmpty() && FeatureFlags.saveCommentMedia) {
             labels.add(I18n.t(ctx, R.string.ie_download));

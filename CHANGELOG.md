@@ -5,7 +5,13 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+## [0.7.0-test.4] - 2026-09-30
+
 ### Added
+- **Translate comments, captions and DMs** (`translateText`, default off): Google translates in a
+  dialog inside Instagram (keyless public endpoints, which Google may rate-limit); Yandex opens the
+  Yandex Translate app or its website. The dialog can also open Google Translate or its website.
+  Replaces the comment-only text-app action; the old `translateComments` setting carries over.
 - Experimental Section 17 settings, all default off: navigation filtering/order, Notes and story-tray hiding,
   exact timestamps, high-resolution image selection, comment media/search/text-app actions, media
   information/image clipboard/audio extraction, voice-message download, profile follow label,

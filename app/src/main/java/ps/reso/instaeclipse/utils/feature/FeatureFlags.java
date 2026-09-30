@@ -145,7 +145,7 @@ public class FeatureFlags {
     public static volatile boolean hideChatButton = false;
     public static volatile boolean mediaActions = false;
     public static volatile boolean saveCommentMedia = false;
-    public static volatile boolean translateComments = false;
+    public static volatile boolean translateText = false;
     public static volatile boolean highResolutionImages = false;
     public static volatile String navigationOrder = "";
     public static volatile boolean profileFollowLabel = false;

@@ -326,10 +326,10 @@ public class FeatureManager {
         } else {
             FeatureStatusTracker.setDisabled("SaveCommentMedia");
         }
-        if (FeatureFlags.translateComments) {
-            FeatureStatusTracker.setEnabled("TranslateComments", R.string.ie_translateComments);
+        if (FeatureFlags.translateText) {
+            FeatureStatusTracker.setEnabled("TranslateText", R.string.ie_translateText);
         } else {
-            FeatureStatusTracker.setDisabled("TranslateComments");
+            FeatureStatusTracker.setDisabled("TranslateText");
         }
         if (FeatureFlags.highResolutionImages) {
             FeatureStatusTracker.setEnabled("HighResolutionImages", R.string.ie_highResolutionImages);

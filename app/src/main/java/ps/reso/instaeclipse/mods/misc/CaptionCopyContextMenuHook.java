@@ -46,6 +46,7 @@ import java.util.WeakHashMap;
 import ps.reso.instaeclipse.hook.MethodHook;
 import ps.reso.instaeclipse.hook.HookBridge;
 import ps.reso.instaeclipse.hook.HookHelpers;
+import ps.reso.instaeclipse.mods.translate.TextTranslator;
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.utils.core.DexKitCache;
 import ps.reso.instaeclipse.utils.feature.FeatureFlags;
@@ -124,6 +125,15 @@ public class CaptionCopyContextMenuHook {
         } catch (Throwable t) {
             ModuleLog.line("(IE|Caption) ❌ installReelLabelOverrideHook: " + t);
         }
+    }
+
+    /** The one injected row serves both actions: copy (with its sheet) and translate. */
+    private static boolean rowEnabled() {
+        return FeatureFlags.enableCaptionCopy || FeatureFlags.translateText;
+    }
+
+    private static int rowLabel() {
+        return FeatureFlags.enableCaptionCopy ? R.string.ig_caption_copy_menu_item : R.string.ie_translate_caption;
     }
 
     private static void installActivityTracker() {
@@ -433,7 +443,7 @@ public class CaptionCopyContextMenuHook {
 
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
-                if (!FeatureFlags.enableCaptionCopy) return;
+                if (!rowEnabled()) return;
                 if (Boolean.TRUE.equals(sAddingCaptionRow.get())) return;
                 if (param.args[idxOption] == copyCaptionOptionValue) return;
 
@@ -449,7 +459,7 @@ public class CaptionCopyContextMenuHook {
                 System.arraycopy(param.args, 0, callArgs, 0, callArgs.length);
                 callArgs[idxEnum]   = enumNormalValue;
                 callArgs[idxOption] = copyCaptionOptionValue;
-                callArgs[idxText]   = I18n.t(HostApp.get(), R.string.ig_caption_copy_menu_item);
+                callArgs[idxText]   = I18n.t(HostApp.get(), rowLabel());
 
                 sAddingCaptionRow.set(true);
                 try {
@@ -472,7 +482,7 @@ public class CaptionCopyContextMenuHook {
         MethodHook clickHook = new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
-                if (!FeatureFlags.enableCaptionCopy) return;
+                if (!rowEnabled()) return;
                 onOptionClicked(param);
             }
         };
@@ -594,7 +604,7 @@ public class CaptionCopyContextMenuHook {
         MethodHook hook = new MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
-                if (!FeatureFlags.enableCaptionCopy) return;
+                if (!rowEnabled()) return;
                 try {
                     Object result = param.getResult();
                     if (result instanceof List<?> list && !list.contains(copyCaptionOptionValue)) {
@@ -806,7 +816,7 @@ public class CaptionCopyContextMenuHook {
                     Context ctx = (args[0] instanceof Context c) ? c : currentActivity;
                     if (ctx == null) return;
 
-                    args[titleIdx] = I18n.t(ctx, R.string.ig_caption_copy_menu_item);
+                    args[titleIdx] = I18n.t(ctx, rowLabel());
                 } catch (Throwable t) {
                     ModuleLog.line("(IE|Caption) ❌ reel label override (builder): " + t);
                 }
@@ -851,7 +861,8 @@ public class CaptionCopyContextMenuHook {
                 return;
             }
 
-            showCopyPopup(ctx, caption.trim());
+            if (FeatureFlags.enableCaptionCopy) showCopyPopup(ctx, caption.trim());
+            else TextTranslator.show(ctx, caption.trim());
         } catch (Throwable t) {
             ModuleLog.line("(IE|Caption) ❌ onOptionClicked: " + t);
         }
@@ -1054,6 +1065,16 @@ public class CaptionCopyContextMenuHook {
                         copyToClipboard(ctx, noTags);
                     });
                     sheet.addView(btnNoTags);
+                }
+
+                if (FeatureFlags.translateText) {
+                    Button btnTranslate = makeButton(ctx,
+                            I18n.t(ctx, R.string.ie_translate_title), secondBg, secondText, dp);
+                    btnTranslate.setOnClickListener(v -> {
+                        dialog.dismiss();
+                        TextTranslator.show(ctx, text);
+                    });
+                    sheet.addView(btnTranslate);
                 }
 
                 Button btnSelect = makeButton(ctx,

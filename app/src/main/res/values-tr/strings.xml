@@ -533,7 +533,18 @@
     <string name="ie_hideChatButton">Sohbet gizleme düğmesini gizle</string>
     <string name="ie_mediaActions">Ek medya işlemleri (ses, bilgi, harici uygulama)</string>
     <string name="ie_saveCommentMedia">Yorumlardaki medyayı kaydet</string>
-    <string name="ie_translateComments">Yorumları çeviri veya metin uygulamasında aç</string>
+    <string name="ie_translateText">Yorumları, açıklamaları ve DM\'leri çevir (Google / Yandex)</string>
+    <string name="ie_translate_title">Çevir</string>
+    <string name="ie_translate_google">Google ile çevir</string>
+    <string name="ie_translate_yandex">Yandex ile çevir</string>
+    <string name="ie_translate_other">Diğer metin uygulamaları</string>
+    <string name="ie_translating">Çevriliyor…</string>
+    <string name="ie_translate_failed">Çevrilemedi. Google Çeviri\'de açmayı deneyin.</string>
+    <string name="ie_translate_open_google">Google Çeviri\'de aç</string>
+    <string name="ie_translate_result_title">Google Çeviri · %1$s → %2$s</string>
+    <string name="ie_translate_copy">Kopyala</string>
+    <string name="ie_translate_copied">Çeviri kopyalandı</string>
+    <string name="ie_translate_caption">Açıklamayı çevir</string>
     <string name="ie_highResolutionImages">Görselleri en yüksek çözünürlükte yükle</string>
     <string name="ie_more_features">Diğer özellikler</string>
     <string name="ie_navigation_order">Sekme sırası</string>
@@ -548,7 +559,6 @@
     <string name="ie_no_media">Desteklenen medya bulunamadı</string>
     <string name="ie_media_failed">Medya işlemi tamamlanamadı</string>
     <string name="ie_download">İndir</string>
-    <string name="ie_share_text">Metni çevir / işle</string>
     <string name="ie_create_tab">Oluştur</string>
     <string name="ie_media_item">Medya seç</string>
     <string name="ie_copy_image">Görseli panoya kopyala (bir kopyasını kaydeder)</string>

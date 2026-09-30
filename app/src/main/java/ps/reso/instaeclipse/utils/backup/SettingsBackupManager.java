@@ -101,7 +101,7 @@ public class SettingsBackupManager {
         s.put("hideChatButton", FeatureFlags.hideChatButton);
         s.put("mediaActions", FeatureFlags.mediaActions);
         s.put("saveCommentMedia", FeatureFlags.saveCommentMedia);
-        s.put("translateComments", FeatureFlags.translateComments);
+        s.put("translateText", FeatureFlags.translateText);
         s.put("highResolutionImages", FeatureFlags.highResolutionImages);
         s.put("navigationOrder", FeatureFlags.navigationOrder);
         s.put("reelsDisableTapPause", FeatureFlags.reelsDisableTapPause);
@@ -217,7 +217,8 @@ public class SettingsBackupManager {
         if (s.has("hideChatButton")) FeatureFlags.hideChatButton = s.getBoolean("hideChatButton");
         if (s.has("mediaActions")) FeatureFlags.mediaActions = s.getBoolean("mediaActions");
         if (s.has("saveCommentMedia")) FeatureFlags.saveCommentMedia = s.getBoolean("saveCommentMedia");
-        if (s.has("translateComments")) FeatureFlags.translateComments = s.getBoolean("translateComments");
+        if (s.has("translateText")) FeatureFlags.translateText = s.getBoolean("translateText");
+        else if (s.has("translateComments")) FeatureFlags.translateText = s.getBoolean("translateComments");
         if (s.has("highResolutionImages")) FeatureFlags.highResolutionImages = s.getBoolean("highResolutionImages");
         if (s.has("navigationOrder")) FeatureFlags.navigationOrder = s.getString("navigationOrder");
         if (s.has("reelsDisableTapPause")) FeatureFlags.reelsDisableTapPause = s.getBoolean("reelsDisableTapPause");

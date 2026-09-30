@@ -214,7 +214,7 @@ public class DialogUtils {
             "hideNotesTray", "hideStoriesTray", "hideNavigationSearch", "hideNavigationReels",
             "hideNavigationCreate", "hideNavigationDirect", "hideNavigationNews", "navigationOrder",
             "exactTimestamps", "hideChatButton", "mediaActions", "saveCommentMedia",
-            "translateComments", "highResolutionImages", "profileFollowLabel", "separateThemeProfiles",
+            "translateText", "highResolutionImages", "profileFollowLabel", "separateThemeProfiles",
             "searchComments", "autoExpandText", "hideOnboardingPrompts", "fixNotificationRegistration",
             "readReceiptExceptions", "hideLikedPosts", "downloadVoiceMessages"};
     private static final String[] K_DEV = {"isDevEnabled"};
@@ -1481,8 +1481,8 @@ public class DialogUtils {
                 FeatureFlags.mediaActions, on -> FeatureFlags.mediaActions = on));
         toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_saveCommentMedia,
                 FeatureFlags.saveCommentMedia, on -> FeatureFlags.saveCommentMedia = on));
-        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_translateComments,
-                FeatureFlags.translateComments, on -> FeatureFlags.translateComments = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_translateText,
+                FeatureFlags.translateText, on -> FeatureFlags.translateText = on));
         toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_highResolutionImages,
                 FeatureFlags.highResolutionImages, on -> FeatureFlags.highResolutionImages = on));
         layout.addView(toggles);

@@ -18,7 +18,7 @@ were observed on Instagram 447.0.0.21.81 and do not establish compatibility with
 | #223 voice messages | `downloadVoiceMessages`, long-press a voice message | Resolves the selected message through a typed audio model path; offers an extra confirmation above the native menu. Saves AAC as M4A, including SAF. Latest discovery and playback are unverified. |
 | #242 comment images/GIF | `saveCommentMedia`, modern comment long-press | Bounded traversal of the selected comment's media holders, validated CDN URLs and actual file signatures. Does not support every Pando holder or the legacy comment menu. Device check pending. |
 | #241 Notes | `hideNotesTray` | Collapses the Notes resource view; restores its saved dimensions when disabled. Device check pending. |
-| #239 profile friendship | `profileFollowLabel` | Reads the current binder's friendship model and adds a label beside the name only in a compatible vertical layout. Initial discovery found no target; revised mapper query remains unverified. |
+| #239 profile friendship | `profileFollowLabel` | Reads the current binder's friendship model. Places the label under the name in a vertical header layout; in the 447 ConstraintLayout header (name id `profile_header_full_name_above_vanity`) it goes into the `internal_only_badges` row under the avatar. Device-checked on 447: follower, non-follower, own profile (no label), rebind without duplicates. |
 | #238 navigation | `hideNavigation*`, `navigationOrder` | Filters/reorders validated native enum lists, preserves Home/Profile and unknown tabs. Order picker is in Instagram Extras. Five hook candidates installed; actual tab behavior pending. Restart after changing order. |
 | #232 timestamps | `exactTimestamps` | Stories plus Android relative-time formatting. Custom Instagram formatters remain uncovered. Three platform hooks installed; date policy unit-tested. |
 | #234 audio only | `mediaActions`, existing post/Reel download action | Extracts the first AAC track without re-encoding. Unsupported codecs/no-audio fail without pretending a video is audio. Custom folder uses the existing service. Synthetic device tests added, execution pending. |
@@ -29,9 +29,9 @@ were observed on Instagram 447.0.0.21.81 and do not establish compatibility with
 | #249 liked posts | `hideLikedPosts` | Exact `has_liked` getters on the parsed item/media holders; applies on feed parsing, not instant removal after liking. Target discovery and behavior unverified. |
 | #246 expand text | `autoExpandText` | Named `ExpandingTextView` state only; no synthetic clicks. Two hooks installed. Does not cover Compose or unrelated text widgets. |
 | #230 comment search | `searchComments`, modern comment menu | Case-insensitive search of the available snapshot (max 500 comments, 100 results), no server pagination. Matching policy tested. |
-| #233 translation | `translateComments` | Read-only Android `ACTION_PROCESS_TEXT` chooser for installed translation/text tools; no bundled translation service. Device handler check pending. |
+| #233 translation | `translateText` (legacy key `translateComments` is still read), comment menu, caption row/sheet, DM text long-press | Google translates in a dialog through keyless endpoints (`clients5` dict-chrome-ex, then `gtx`) with the WebView user agent (the default Dalvik agent gets a captcha redirect); the dialog can open Google Translate or its website. Yandex opens its app (`ACTION_PROCESS_TEXT`, then `ACTION_SEND`) or translate.yandex.com. Text is sent only after a service is picked. DM text is read from the pressed message's TEXT-type field (`DirectMessage.updateIsMessageEmoji`). Device-checked on 447: caption and comment with Google and Yandex, web fallback; DM path installed and resolved but not exercised. |
 | #251 light/dark themes | `separateThemeProfiles`, theme editor save buttons | Each mode has a saved palette; an empty mode uses Instagram colors. Mode changes invalidate the palette/remap cache. Requires existing custom-theme toggle. Compose coverage is unchanged. |
-| Story-tray hiding | `hideStoriesTray` | Independent UI-only option; does not enable the story network blocker. Check restore and activity recreation. |
+| Story-tray hiding | `hideStoriesTray` | Independent UI-only option; does not enable the story network blocker. Check restore and activity recreation. Also collapses `overlay_stories_tray_container`, the copy Instagram floats over the feed after returning to the top; that overlay path was not re-triggered after the fix. |
 | Higher-resolution images | `highResolutionImages` | Selects the largest real candidate from the native list; does not invent URLs or force global DPI. One hook installed. |
 | External downloader | `mediaActions` | Sends a validated selected CDN URL to an Android view chooser. Requires an app that accepts the URL. |
 | Permission onboarding | `hideOnboardingPrompts` | Suppresses only two exact optional NDX prompt IDs, not runtime permissions or account/security screens. One hook installed. |
@@ -109,3 +109,28 @@ Run each case with its setting off and on. Installed hooks alone do not pass the
 - Therefore the existing debug APK predates these last changes. Do not publish it as a build
   containing them. Run `testDebugUnitTest lintDebug assembleDebug` and
   `connectedDebugAndroidTest` in a normal Android build environment before release.
+
+## Device check (30 September 2026)
+
+Instagram 447.0.0.21.81, Vector 2.2 (API 102), HyperOS 3.0 (Android 16). Read-only navigation on a
+real account: no likes, follows, comments, opened DM threads or sent receipts.
+
+- `testDebugUnitTest lintDebug assembleDebug`: 63 tests passed, no lint errors.
+  `AudioExtractionTest` on the device: 3/3 after two fixes: fixtures are written to the target
+  app's cache (the test APK's cache is not writable from the instrumented process), and
+  `extractAudio` shifts negative AAC priming timestamps to zero (samples were muxed out of order).
+- Cold start: 208 hooks, no crash; every Section 17 target resolved.
+- Working: Notes tray hiding, story tray hiding, comment copy/search (case-insensitive)/text
+  processing chooser, media info, media action list filtered by type (no audio-only for images,
+  no image clipboard for videos), profile follow label.
+- Not effective on 447: `autoExpandText` (feed captions are `IgTextLayoutView`, not
+  `ExpandingTextView`); `exactTimestamps` for feed and comment times (Instagram's own formatter).
+- Not checked: voice download, per-chat seen exceptions, image clipboard paste, external
+  downloader, light/dark theme profiles, navigation tab hiding, liked-post hiding (the getter ran on
+  50 feed items; confirming requires liking a post).
+- Existing downloader, outside Section 17: on an 11-item carousel whose first item is a video,
+  `extractCarouselUrls` blocked the UI thread for about 7 s (`MediaModelResolver.findObjectOfType`
+  reflective traversal per item) and returned the same video URL for every item.
+- Harness note: `connectedDebugAndroidTest` uninstalls the app under test on this device, which
+  removes the module and resets its framework scope; install with `pm install` and run
+  `am instrument` instead.

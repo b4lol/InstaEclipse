@@ -33,6 +33,7 @@ object MediaActions {
     private val workers = ThreadPoolExecutor(2, 2, 30, TimeUnit.SECONDS, ArrayBlockingQueue(8),
         { work -> Thread(work, "IE-MediaActions").apply { isDaemon = true } })
     private const val MAX_BYTES = 256L * 1024 * 1024
+    private val IMAGE_EXTENSIONS = listOf(".jpg", ".jpeg", ".png", ".webp", ".heic", ".gif")
 
     @JvmStatic
     fun offer(ctx: Context, urls: List<String>, download: Runnable): Boolean {
@@ -48,10 +49,16 @@ object MediaActions {
     }
 
     private fun show(ctx: Context, url: String, download: Runnable) {
+        // Action indices stay fixed; only the ones that fit the media type are listed. CDN paths end
+        // in the real extension, and an unknown one keeps every action.
+        val path = runCatching { Uri.parse(url).path.orEmpty().lowercase() }.getOrDefault("")
+        val video = path.endsWith(".mp4")
+        val image = IMAGE_EXTENSIONS.any { path.endsWith(it) }
         val labels = intArrayOf(R.string.ie_download, R.string.ie_audio_only, R.string.ie_media_info,
             R.string.ie_external_media, R.string.ie_copy_image)
-        AlertDialog.Builder(ctx).setItems(labels.map { I18n.t(ctx, it) }.toTypedArray()) { _, index ->
-            when (index) {
+        val actions = labels.indices.filter { !(it == 1 && image) && !(it == 4 && video) }
+        AlertDialog.Builder(ctx).setItems(actions.map { I18n.t(ctx, labels[it]) }.toTypedArray()) { _, choice ->
+            when (val index = actions[choice]) {
                 0 -> download.run()
                 3 -> try {
                     ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_VIEW, Uri.parse(url)),
@@ -176,6 +183,9 @@ object MediaActions {
             require(capacity in 1..(16 * 1024 * 1024))
             val buffer = ByteBuffer.allocate(capacity.coerceAtLeast(1024 * 1024))
             val info = MediaCodec.BufferInfo()
+            // AAC encoder priming often gives the first sample a negative time, which leaves the
+            // muxed samples out of order; shift the track to start at zero.
+            var offset = Long.MIN_VALUE
             while (true) {
                 buffer.clear()
                 val size = extractor.readSampleData(buffer, 0)
@@ -183,7 +193,8 @@ object MediaActions {
                 require(extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_ENCRYPTED == 0)
                 val flags = if (extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0)
                     MediaCodec.BUFFER_FLAG_KEY_FRAME else 0
-                info.set(0, size, extractor.sampleTime, flags)
+                if (offset == Long.MIN_VALUE) offset = minOf(extractor.sampleTime, 0L)
+                info.set(0, size, extractor.sampleTime - offset, flags)
                 muxer.writeSampleData(out, buffer, info)
                 extractor.advance()
             }

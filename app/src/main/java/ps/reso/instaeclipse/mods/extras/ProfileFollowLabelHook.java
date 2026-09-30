@@ -30,6 +30,7 @@ public final class ProfileFollowLabelHook {
                     View root = null;
                     for (Object arg : p.args) if (arg instanceof View v) { root = v; break; }
                     if (root == null) return;
+                    TextView title = findTitle(root);
                     View previous = root.findViewWithTag(TAG);
                     if (previous != null && previous.getParent() instanceof ViewGroup group) group.removeView(previous);
                     if (!FeatureFlags.profileFollowLabel) return;
@@ -39,21 +40,40 @@ public final class ProfileFollowLabelHook {
                     if (statuses.size() != 1) return;
                     Object value = mapper.invoke(null, statuses.iterator().next());
                     if (!(value instanceof Map<?, ?> map) || !(map.get("followed_by") instanceof Boolean followed)) return;
-                    int id = ResIds.id(root.getContext(), "profile_header_full_name");
-                    View anchor = id == 0 ? null : root.findViewById(id);
-                    if (!(anchor instanceof TextView title) || !(anchor.getParent() instanceof android.widget.LinearLayout parent)
-                            || parent.getOrientation() != android.widget.LinearLayout.VERTICAL) return;
                     TextView label = new TextView(root.getContext());
                     label.setTag(TAG);
                     label.setText(I18n.t(root.getContext(), followed ? R.string.ig_toast_follows_you : R.string.ig_toast_not_follows_you));
-                    label.setTextColor(title.getCurrentTextColor()); label.setTextSize(13);
-                    parent.addView(label, parent.indexOfChild(anchor) + 1,
-                            new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                    label.setTextSize(13);
+                    label.setTextColor(title != null ? title.getCurrentTextColor() : android.graphics.Color.GRAY);
+                    // Older headers stack the name in a vertical LinearLayout: put the label right under it.
+                    // Newer ones (447+) lay the header out in a ConstraintLayout, where an unconstrained child
+                    // would overlap; there the label goes into the header's badge row, under the avatar.
+                    int badgesId = ResIds.id(root.getContext(), "internal_only_badges");
+                    View badgeRow = badgesId == 0 ? null : root.findViewById(badgesId);
+                    if (title != null && title.getParent() instanceof android.widget.LinearLayout parent
+                            && parent.getOrientation() == android.widget.LinearLayout.VERTICAL) {
+                        parent.addView(label, parent.indexOfChild(title) + 1,
+                                new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                    } else if (badgeRow instanceof android.widget.LinearLayout badges) {
+                        badges.addView(label, new ViewGroup.LayoutParams(
+                                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                        if (badges.getVisibility() != View.VISIBLE) badges.setVisibility(View.VISIBLE);
+                    } else return;
                     FeatureStatusTracker.setHooked("ProfileFollowLabel");
                 }
             });
         }
     }
+
+    /** Name view of the profile header; its id changed across versions. */
+    private static TextView findTitle(View root) {
+        for (String name : new String[] {"profile_header_full_name", "profile_header_full_name_above_vanity"}) {
+            int id = ResIds.id(root.getContext(), name);
+            if (id != 0 && root.findViewById(id) instanceof TextView t) return t;
+        }
+        return null;
+    }
+
     private static void find(Object obj, Class<?> target, int depth, Set<Object> seen, Set<Object> out) {
         if (obj == null || depth > 3 || seen.size() >= 128 || !seen.add(obj)) return;
         if (target.isInstance(obj)) { out.add(obj); return; }

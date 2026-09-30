@@ -994,7 +994,7 @@ public class FeaturesFragment extends Fragment {
                 createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_hideChatButton), "hideChatButton"),
                 createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_mediaActions), "mediaActions"),
                 createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_saveCommentMedia), "saveCommentMedia"),
-                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_translateComments), "translateComments"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_translateText), "translateText"),
                 createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_highResolutionImages), "highResolutionImages")
         ));
         showMenu(getString(R.string.ig_dialog_menu_extras), defs);
