@@ -17,3 +17,6 @@ local.properties
 /app/release
 /app/debug
 /APK
+
+# Kotlin incremental compiler state
+.kotlin/

@@ -549,4 +549,10 @@
     <string name="ig_dialog_location_current_title">Τρέχουσα τοποθεσία</string>
     <string name="ig_dialog_location_recent">Πρόσφατες τοποθεσίες</string>
     <string name="ig_dialog_location_applied">Η τοποθεσία εφαρμόστηκε</string>
+    <string name="home_framework_line">%1$s %2$s · API %3$d</string>
+    <string name="home_framework_missing">Δεν υπάρχει συνδεδεμένο framework Xposed</string>
+    <string name="home_module_active">Ενεργό στο Instagram</string>
+    <string name="home_module_not_running">Δεν εκτελείται στο Instagram</string>
+    <string name="home_module_stale">Το Instagram τρέχει ακόμη παλαιότερη έκδοση του module. Κάντε αναγκαστική διακοπή και ανοίξτε το ξανά.</string>
+    <string name="home_restart_instagram">Επανεκκίνηση Instagram</string>
 </resources>

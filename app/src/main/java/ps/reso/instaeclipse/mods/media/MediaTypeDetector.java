@@ -9,7 +9,7 @@ import java.util.Locale;
 /** Detects downloaded media from its response header and file signature. */
 final class MediaTypeDetector {
 
-    enum Kind { VIDEO, IMAGE, UNKNOWN }
+    enum Kind { VIDEO, IMAGE, AUDIO, UNKNOWN }
 
     static final class Result {
         final Kind kind;
@@ -31,6 +31,23 @@ final class MediaTypeDetector {
 
     static Result resolve(File file, String responseContentType, String requestedMime,
                           String requestedFilename) throws IOException {
+        byte[] header = new byte[16];
+        try (InputStream in = new FileInputStream(file)) {
+            int off = 0, n;
+            while (off < header.length && (n = in.read(header, off, header.length - off)) > 0) off += n;
+        }
+        String detectedMime = ps.reso.instaeclipse.features.MediaFilePolicy.mime(header, responseContentType);
+        if (detectedMime != null) {
+            String ext = ps.reso.instaeclipse.features.MediaFilePolicy.extension(detectedMime);
+            String name = requestedFilename;
+            if (name != null) {
+                int dot = name.lastIndexOf('.');
+                name = (dot > 0 ? name.substring(0, dot) : name) + ext;
+            }
+            Kind detectedKind = detectedMime.startsWith("image/") ? Kind.IMAGE
+                    : detectedMime.startsWith("audio/") ? Kind.AUDIO : Kind.VIDEO;
+            return new Result(detectedKind, detectedMime, name);
+        }
         Kind kind = sniff(file);
         if (kind == Kind.UNKNOWN) kind = fromContentType(responseContentType);
         if (kind == Kind.UNKNOWN) kind = fromContentType(requestedMime);

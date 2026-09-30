@@ -210,7 +210,13 @@ public class DialogUtils {
             "showFollowerToast", "enableStoryMentions", "disableDiscoverPeople", "enableCopyComment", "disableDoubleTapLike",
             "enableCaptionCopy", "enablePhotoZoom", "spoofLastSeen", "removeMetaAI", "openLinksExternally"};
     private static final String[] K_EXTRAS = {"airplaneMode", "storyExactTime", "reelsDisableTapPause", "reelsAutoScroll",
-            "reelsLockScroll", "disableSwipeToCamera", "hideShareSheetGroup", "unlimitedAccounts", "startupTab", "customShareDomain"};
+            "reelsLockScroll", "disableSwipeToCamera", "hideShareSheetGroup", "unlimitedAccounts", "startupTab", "customShareDomain",
+            "hideNotesTray", "hideStoriesTray", "hideNavigationSearch", "hideNavigationReels",
+            "hideNavigationCreate", "hideNavigationDirect", "hideNavigationNews", "navigationOrder",
+            "exactTimestamps", "hideChatButton", "mediaActions", "saveCommentMedia",
+            "translateComments", "highResolutionImages", "profileFollowLabel", "separateThemeProfiles",
+            "searchComments", "autoExpandText", "hideOnboardingPrompts", "fixNotificationRegistration",
+            "readReceiptExceptions", "hideLikedPosts", "downloadVoiceMessages"};
     private static final String[] K_DEV = {"isDevEnabled"};
 
     /** Number of the given FeatureFlags that are on (true, non-empty text or non-zero number). */
@@ -1435,6 +1441,50 @@ public class DialogUtils {
                 FeatureFlags.hideShareSheetGroup, on -> FeatureFlags.hideShareSheetGroup = on));
         toggles.addView(extrasSwitch(context, R.drawable.ic_shield, R.string.ig_dialog_extras_unlimited_accounts,
                 FeatureFlags.unlimitedAccounts, on -> FeatureFlags.unlimitedAccounts = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_profileFollowLabel,
+                FeatureFlags.profileFollowLabel, on -> FeatureFlags.profileFollowLabel = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_separateThemeProfiles,
+                FeatureFlags.separateThemeProfiles, on -> FeatureFlags.separateThemeProfiles = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_searchComments,
+                FeatureFlags.searchComments, on -> FeatureFlags.searchComments = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_autoExpandText,
+                FeatureFlags.autoExpandText, on -> FeatureFlags.autoExpandText = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_hideOnboardingPrompts,
+                FeatureFlags.hideOnboardingPrompts, on -> FeatureFlags.hideOnboardingPrompts = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_fixNotificationRegistration,
+                FeatureFlags.fixNotificationRegistration, on -> FeatureFlags.fixNotificationRegistration = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_readReceiptExceptions,
+                FeatureFlags.readReceiptExceptions, on -> FeatureFlags.readReceiptExceptions = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_hideLikedPosts,
+                FeatureFlags.hideLikedPosts, on -> FeatureFlags.hideLikedPosts = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_downloadVoiceMessages,
+                FeatureFlags.downloadVoiceMessages, on -> FeatureFlags.downloadVoiceMessages = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_hideStoriesTray,
+                FeatureFlags.hideStoriesTray, on -> FeatureFlags.hideStoriesTray = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_hideNotesTray,
+                FeatureFlags.hideNotesTray, on -> FeatureFlags.hideNotesTray = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_hideNavigationSearch,
+                FeatureFlags.hideNavigationSearch, on -> FeatureFlags.hideNavigationSearch = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_hideNavigationReels,
+                FeatureFlags.hideNavigationReels, on -> FeatureFlags.hideNavigationReels = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_hideNavigationCreate,
+                FeatureFlags.hideNavigationCreate, on -> FeatureFlags.hideNavigationCreate = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_hideNavigationDirect,
+                FeatureFlags.hideNavigationDirect, on -> FeatureFlags.hideNavigationDirect = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_hideNavigationNews,
+                FeatureFlags.hideNavigationNews, on -> FeatureFlags.hideNavigationNews = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_exactTimestamps,
+                FeatureFlags.exactTimestamps, on -> FeatureFlags.exactTimestamps = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_hideChatButton,
+                FeatureFlags.hideChatButton, on -> FeatureFlags.hideChatButton = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_mediaActions,
+                FeatureFlags.mediaActions, on -> FeatureFlags.mediaActions = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_saveCommentMedia,
+                FeatureFlags.saveCommentMedia, on -> FeatureFlags.saveCommentMedia = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_translateComments,
+                FeatureFlags.translateComments, on -> FeatureFlags.translateComments = on));
+        toggles.addView(extrasSwitch(context, R.drawable.ic_tune, R.string.ie_highResolutionImages,
+                FeatureFlags.highResolutionImages, on -> FeatureFlags.highResolutionImages = on));
         layout.addView(toggles);
 
         layout.addView(sectionHeader(context, I18n.t(context, R.string.ig_dialog_extras_startup_tab)));
@@ -1461,6 +1511,10 @@ public class DialogUtils {
         domainCard.addView(createActionRow(context, R.drawable.ic_link, shareDomainLabel(context), "#BF5AF2",
                 v -> promptShareDomain(context, (TextView) findLabel(v))));
         layout.addView(domainCard);
+
+        layout.addView(createActionRow(context, R.drawable.ic_tune,
+                I18n.t(context, R.string.ie_navigation_order), "#30D158", v ->
+                ps.reso.instaeclipse.mods.extras.NavigationTabsHook.showOrderPicker(context)));
 
         showSectionDialog(context, I18n.t(context, R.string.ig_dialog_menu_extras), layout, () -> {});
     }

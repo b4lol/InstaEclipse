@@ -568,4 +568,62 @@
     <string name="ig_dialog_location_current_title">Current location</string>
     <string name="ig_dialog_location_recent">Recent places</string>
     <string name="ig_dialog_location_applied">Location applied</string>
+    <string name="home_framework_line">%1$s %2$s · API %3$d</string>
+    <string name="home_framework_missing">No Xposed framework connected</string>
+    <string name="home_module_active">Active in Instagram</string>
+    <string name="home_module_not_running">Not running in Instagram</string>
+    <string name="home_module_stale">Instagram is still running an older module build. Force stop and reopen it.</string>
+    <string name="home_restart_instagram">Restart Instagram</string>
+    <string tools:ignore="MissingTranslation" name="ie_hideNotesTray">Hide Notes in DMs</string>
+    <string tools:ignore="MissingTranslation" name="ie_hideNavigationSearch">Hide Search tab</string>
+    <string tools:ignore="MissingTranslation" name="ie_hideNavigationReels">Hide Reels tab</string>
+    <string tools:ignore="MissingTranslation" name="ie_hideNavigationCreate">Hide Create tab</string>
+    <string tools:ignore="MissingTranslation" name="ie_hideNavigationDirect">Hide Messages tab</string>
+    <string tools:ignore="MissingTranslation" name="ie_hideNavigationNews">Hide Notifications tab</string>
+    <string tools:ignore="MissingTranslation" name="ie_exactTimestamps">Exact dates instead of relative times</string>
+    <string tools:ignore="MissingTranslation" name="ie_hideChatButton">Hide the Hide chat button</string>
+    <string tools:ignore="MissingTranslation" name="ie_mediaActions">Extra media actions (audio, info, external app)</string>
+    <string tools:ignore="MissingTranslation" name="ie_saveCommentMedia">Save media in comments</string>
+    <string tools:ignore="MissingTranslation" name="ie_translateComments">Open comments in a translation or text app</string>
+    <string tools:ignore="MissingTranslation" name="ie_highResolutionImages">Load highest resolution images</string>
+    <string tools:ignore="MissingTranslation" name="ie_more_features">More features</string>
+    <string tools:ignore="MissingTranslation" name="ie_navigation_order">Navigation order</string>
+    <string tools:ignore="MissingTranslation" name="ie_navigation_order_help">Select tabs in the desired order. Unselected tabs keep their original order. Home and Profile stay available. Restart Instagram to apply.</string>
+    <string tools:ignore="MissingTranslation" name="ie_reset">Reset</string>
+    <string tools:ignore="MissingTranslation" name="ie_save">Save</string>
+    <string tools:ignore="MissingTranslation" name="ie_audio_only">Save audio only</string>
+    <string tools:ignore="MissingTranslation" name="ie_media_info">Media information</string>
+    <string tools:ignore="MissingTranslation" name="ie_external_media">Open with another app</string>
+    <string tools:ignore="MissingTranslation" name="ie_working">Working…</string>
+    <string tools:ignore="MissingTranslation" name="ie_saved">Saved</string>
+    <string tools:ignore="MissingTranslation" name="ie_no_media">No supported media found</string>
+    <string tools:ignore="MissingTranslation" name="ie_media_failed">Could not complete the media action</string>
+    <string tools:ignore="MissingTranslation" name="ie_download">Download</string>
+    <string tools:ignore="MissingTranslation" name="ie_share_text">Translate / process text</string>
+    <string tools:ignore="MissingTranslation" name="ie_create_tab">Create</string>
+    <string tools:ignore="MissingTranslation" name="ie_media_item">Select media</string>
+    <string tools:ignore="MissingTranslation" name="ie_copy_image">Copy image to clipboard (also saves a copy)</string>
+    <string tools:ignore="MissingTranslation" name="ie_image_copied">Image copied</string>
+    <string tools:ignore="MissingTranslation" name="ie_media_busy">Download queue is full; try again shortly</string>
+    <string tools:ignore="MissingTranslation" name="ie_profileFollowLabel">Follow status label on profiles</string>
+    <string tools:ignore="MissingTranslation" name="ie_separateThemeProfiles">Separate light and dark theme palettes</string>
+<string tools:ignore="MissingTranslation" name="ie_theme_profiles">Save this palette for a mode</string>
+<string tools:ignore="MissingTranslation" name="ie_theme_profiles_help">Choose a mode for the current palette, then enable separate palettes in Extras. A mode without a saved palette uses the original Instagram colors.</string>
+<string tools:ignore="MissingTranslation" name="ie_theme_light">Light mode</string>
+<string tools:ignore="MissingTranslation" name="ie_theme_dark">Dark mode</string>
+    <string tools:ignore="MissingTranslation" name="ie_searchComments">Search loaded comments</string>
+    <string tools:ignore="MissingTranslation" name="ie_loaded_comments_only">Searches up to 500 comments already loaded in this post. It does not load older comments.</string>
+    <string tools:ignore="MissingTranslation" name="ie_autoExpandText">Automatically expand text</string>
+    <string tools:ignore="MissingTranslation" name="ie_hideOnboardingPrompts">Hide contact and location onboarding prompts</string>
+    <string tools:ignore="MissingTranslation" name="ie_fixNotificationRegistration">Fix legacy notification registration on Android 12+</string>
+    <string tools:ignore="MissingTranslation" name="ie_readReceiptExceptions">Allow read receipts for selected chats (hold the eye button)</string>
+<string tools:ignore="MissingTranslation" name="ie_allow_chat_seen">Allow read receipts in this chat?</string>
+<string tools:ignore="MissingTranslation" name="ie_block_chat_seen">Block read receipts in this chat?</string>
+<string tools:ignore="MissingTranslation" name="ie_chat_seen_help">Applies to this chat while Ghost mode is enabled. Other chats keep their existing protection.</string>
+    <string tools:ignore="MissingTranslation" name="ie_hideLikedPosts">Hide already liked posts from the feed</string>
+    <string tools:ignore="MissingTranslation" name="ie_downloadVoiceMessages">Download voice messages (long-press a message)</string>
+<string tools:ignore="MissingTranslation" name="ie_voice_download_title">Save this voice message?</string>
+<string tools:ignore="MissingTranslation" name="ie_instagram_options">Instagram options</string>
+    <string tools:ignore="MissingTranslation" name="ie_hideStoriesTray">Hide story tray only</string>
+    <string tools:ignore="MissingTranslation" name="ie_no_text_app">No translation or text-processing app is available</string>
 </resources>

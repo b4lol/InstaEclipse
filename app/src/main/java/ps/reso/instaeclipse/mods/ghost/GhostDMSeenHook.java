@@ -23,10 +23,25 @@ import ps.reso.instaeclipse.utils.log.ModuleLog;
  */
 public class GhostDMSeenHook {
     public void handleSeenBlock(LazyDexKit bridge) {
+        boolean verified = false;
+        try {
+            android.content.Context ctx = ps.reso.instaeclipse.hook.HostApp.get();
+            verified = ctx != null && "447.0.0.21.81".equals(ctx.getPackageManager()
+                    .getPackageInfo(ctx.getPackageName(), 0).versionName);
+        } catch (Exception ignored) {}
+        final boolean verifiedThreadArgument = verified;
         MethodHook hook = new MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
-                if (FeatureFlags.isGhostSeen) param.setResult(null);
+                if (!FeatureFlags.isGhostSeen) return;
+                // IG 447's mark_thread_seen- sender takes (UserSession, callback, threadId, itemId, token).
+                // Unknown shapes remain blocked, never infer the current thread for a background request.
+                Class<?>[] types = ((Method) param.method).getParameterTypes();
+                boolean knownShape = verifiedThreadArgument && types.length == 5 && types[2] == String.class
+                        && types[3] == String.class && types[4] == String.class
+                        && types[0].getName().equals("com.instagram.common.session.UserSession");
+                if (knownShape && param.args[2] instanceof String id && ReadReceiptExceptions.allows(id)) return;
+                param.setResult(null);
             }
         };
 

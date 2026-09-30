@@ -129,6 +129,8 @@ public class KeepUnsentMessagesHook {
                         if (id != null && Boolean.TRUE.equals(flag)) {
                             currentThreadId = id;
                             rememberThreadName(id);
+                        } else if (id != null && id.equals(currentThreadId) && Boolean.FALSE.equals(flag)) {
+                            currentThreadId = null;
                         }
                     }
                 }

@@ -57,7 +57,7 @@ public class StoryTimestampHook {
         HookBridge.hookMethod(header, new MethodHook() {
             @Override
             protected boolean isActive() {
-                return FeatureFlags.storyExactTime;
+                return FeatureFlags.storyExactTime || FeatureFlags.exactTimestamps;
             }
 
             @Override
@@ -66,7 +66,11 @@ public class StoryTimestampHook {
                 if (!(original instanceof String) || !(param.args[0] instanceof Context ctx)) return;
                 long seconds = (long) getter.invoke(param.thisObject);
                 if (seconds <= 0) return;
-                param.setResult(format(ctx, seconds * 1000L) + " · " + original);
+                if (FeatureFlags.exactTimestamps) {
+                    String exact = ps.reso.instaeclipse.features.ExactTimePolicy.format(seconds * 1000L,
+                            System.currentTimeMillis(), java.util.Locale.getDefault(), java.time.ZoneId.systemDefault());
+                    if (exact != null) param.setResult(exact);
+                } else param.setResult(format(ctx, seconds * 1000L) + " · " + original);
             }
         });
         FeatureStatusTracker.setHooked("StoryExactTime");

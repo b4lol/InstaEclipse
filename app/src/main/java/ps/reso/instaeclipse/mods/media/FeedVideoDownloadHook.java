@@ -329,7 +329,8 @@ public class FeedVideoDownloadHook {
                 Toast.makeText(ctx, I18n.t(ctx, R.string.ig_toast_no_media_for_post), Toast.LENGTH_SHORT).show();
                 return;
             }
-            onDownloadClicked(ctx, urls, saveBtn);
+            if (!MediaActions.offer(ctx, urls, () -> onDownloadClicked(ctx, urls, saveBtn)))
+                onDownloadClicked(ctx, urls, saveBtn);
         });
 
         // Long-press the like button as fallback download trigger.
@@ -1662,8 +1663,11 @@ public class FeedVideoDownloadHook {
      */
     static OutputStream openOutputStream(Context ctx, String filename, boolean isVideo, String username)
             throws Exception {
-        String mimeType = isVideo ? "video/mp4" : "image/jpeg";
+        return openOutputStream(ctx, filename, isVideo ? "video/mp4" : "image/jpeg", username);
+    }
 
+    static OutputStream openOutputStream(Context ctx, String filename, String mimeType, String username)
+            throws Exception {
         // 1. Raw path — preferred when set; bypasses SAF authority entirely
         if (!FeatureFlags.downloaderCustomPath.isEmpty()) {
             try {
@@ -1874,7 +1878,11 @@ public class FeedVideoDownloadHook {
             ModuleLog.line("(IE|DL|Type) requested=" + (isVideo ? "video" : "image")
                     + " response=" + responseType + " detected=" + detected.kind
                     + " file=" + detected.filename);
-            saveFileToDestination(ctx, temp, detected.filename, detected.isVideo(), username);
+            try (java.io.InputStream in = new java.io.FileInputStream(temp);
+                 java.io.OutputStream out = openOutputStream(ctx, detected.filename, detected.mimeType, username)) {
+                byte[] buffer = new byte[32768]; int n;
+                while ((n = in.read(buffer)) != -1) out.write(buffer, 0, n);
+            }
         } finally {
             //noinspection ResultOfMethodCallIgnored
             temp.delete();
@@ -1910,7 +1918,7 @@ public class FeedVideoDownloadHook {
      * Package-accessible: collects Instagram CDN media URLs from the given object graph.
      * Used by PostDownloadContextMenuHook as a fallback URL source.
      */
-    static List<String> collectCdnUrls(Object obj) {
+    public static List<String> collectCdnUrls(Object obj) {
         List<String> out = new ArrayList<>();
         scanForCdnUrls(obj, out, 0, Collections.newSetFromMap(new IdentityHashMap<>()));
         return out;
@@ -2069,7 +2077,14 @@ public class FeedVideoDownloadHook {
      * currentIndex = the visible carousel slide (from findCarouselIndex). Must be called on main thread.
      */
     @SuppressLint("DefaultLocale")
-    static void showPostDownloadDialog(Context ctx, List<String> urls,
+    public static void showPostDownloadDialog(Context ctx, List<String> urls,
+                                       String username, String mediaId, int currentIndex) {
+        if (MediaActions.offer(ctx, urls,
+                () -> showPostDownloadDialogOriginal(ctx, urls, username, mediaId, currentIndex))) return;
+        showPostDownloadDialogOriginal(ctx, urls, username, mediaId, currentIndex);
+    }
+
+    private static void showPostDownloadDialogOriginal(Context ctx, List<String> urls,
                                        String username, String mediaId, int currentIndex) {
         if (urls.isEmpty()) {
             Toast.makeText(ctx, I18n.t(ctx, R.string.ig_toast_post_url_not_found), Toast.LENGTH_SHORT).show();

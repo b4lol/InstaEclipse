@@ -99,12 +99,15 @@ exceptions thrown by a callback. Behaviour is covered by `MethodHookTest`.
 
 ## Build
 
-- AGP 9.4, Gradle 9.8, Java 17 toolchain, `compileSdk` 37, `targetSdk` 36, `minSdk` 28.
+- AGP 9.4, Gradle 9.8, Java 21 source/target, `compileSdk` 37, `targetSdk` 36, `minSdk` 28.
 - Versions live in `gradle/libs.versions.toml`.
 - `compileOnly io.github.libxposed:api:102.0.0` provides the Xposed API (the framework supplies
   it at runtime); `io.github.libxposed:service:102.0.0` is bundled for the companion side.
   `module.prop` declares `minApiVersion=101` / `targetApiVersion=102`: API 102 calls must be
   guarded by a framework version check, which the `io.github.libxposed:lint` checks enforce.
+- API 102 in use (only when the framework reports it): hook IDs set by `HookBridge`,
+  `detach()` from package events once hooks are installed (and in secondary processes), and
+  the companion's status card reading framework info and hooked processes from the service.
 - R8 is off (`minifyEnabled false`): hooks rely on reflection and stable class names.
 
 ```bash

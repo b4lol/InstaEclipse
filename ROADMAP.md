@@ -4,12 +4,14 @@
 > Status: implementation plan; the Kotlin migration and the API 102 adoption have not started.  
 > Reference: `modernize/libxposed-101` at `404dc80` (libxposed 102 / AGP 9 toolchain), `v0.7.0-test.2`.
 
-This document has two tracks:
+This document has three tracks:
 
 - **Java/Kotlin hybrid migration** (sections 1–6): move new and maintenance-heavy code to Kotlin
   without rewriting working features.
 - **libxposed API 102 adoption** (section 7): use what API 102 adds on top of the current hook
   model.
+- **Instagram feature backlog** (section 17): enhancement requests from the upstream tracker and
+  ideas from piko's Instagram patches, planned as runtime hooks.
 
 The tracks are independent. They share the invariants, test strategy, release and rollback rules
 in sections 8–13, and they are never mixed in one change.
@@ -40,9 +42,9 @@ the order given here is not a delivery commitment.
 | Application | Single `app` module, Java and XML UIs | Mixed use inside the same module first |
 | Identity | `ps.reso.instaeclipse` | Kept |
 | Android | `minSdk 28`, `compileSdk 37`, `targetSdk 36` | Managed independently of the language migration |
-| Java target | Java 17 source and bytecode compatibility | Matched by the Kotlin JVM target |
+| Java target | Java 21 source and bytecode compatibility | Matched by the Kotlin JVM target |
 | Build | AGP `9.4.1`, Gradle `9.8.0`, version catalog | Kotlin added in one small change once compatibility is verified |
-| Hook engine | libxposed API `102.0.0`, service `102.0.0`; `minApiVersion=101`, `targetApiVersion=102` | Current hook model kept; API 102 features per section 7 |
+| Hook engine | libxposed API `102.0.0`, service `102.0.0`; `minApiVersion=101`, `targetApiVersion=102`; hook IDs and `detach()` in use | Current hook model kept; API 102 features per section 7 |
 | Method discovery | DexKit, `LazyDexKit`, `DexKitCache` | Cache and lazy opening kept |
 | UI | Activities, Fragments, Views and XML; Material 3 Expressive with Dynamic Colors | Compose is not required for Kotlin |
 | Settings | `instaeclipse_prefs` on the Instagram side, `instaeclipse_cache` on the companion side | Keys and their meaning kept |
@@ -232,7 +234,7 @@ areas required for it are missing.
   from the official compatibility documents and pin it in the version catalog.
 - [ ] Use AGP 9's built-in Kotlin support (no separate `org.jetbrains.kotlin.android` plugin); do
   not mix setup methods from different AGP generations.
-- [ ] Align the Java and Kotlin JVM targets at 17; pin the CI JDK explicitly.
+- [ ] Align the Java and Kotlin JVM targets at 21; the CI JDK is pinned to 21.
 - [ ] Decide the source directories: `app/src/main/kotlin` and `app/src/test/kotlin`; the Java
   directories stay.
 - [ ] Review the Kotlin runtime version/dependency tree; find duplicated and needless dependencies.
@@ -370,10 +372,12 @@ mean the hybrid migration failed.
 
 ### 7.1 Current state
 
-The build uses libxposed api and service `102.0.0` (`404dc80`). `module.prop` declares
-`targetApiVersion=102` and keeps `minApiVersion=101`, so frameworks that only support API 101 still
-load the module. No API 102 method is called yet. The libxposed lint checks flag API 102 calls
-made without a framework version check.
+The build uses libxposed api and service `102.0.0`. `module.prop` declares `targetApiVersion=102`
+and keeps `minApiVersion=101`, so frameworks that only support API 101 still load the module.
+Every API 102 call is guarded by the framework's API version in the form the libxposed lint checks
+recognize, and lint runs clean. The test device runs Vector 2.2 with API 102.
+
+Steps 0–3 below are done; hot reload (steps 4–5) is not.
 
 API 102 does not change the hook model: the hook layer (`Module`, `MethodHook`, `HookBridge`,
 `HookHelpers`, `RemotePrefs`) is the only code that talks to libxposed, and the feature code above
@@ -406,14 +410,14 @@ Estimates are working time at the pace of the recent sessions, including device 
 
 | Step | Work | Estimate | Exit gate |
 | --- | --- | --- | --- |
-| 0 | Log the framework's API version at module load and show it in the companion; confirm whether the test device's Vector supports API 102 | < 1 h | Framework name and API version recorded in the device matrix |
-| 1 | Hook IDs through `HookBridge` for all ~174 hook installs; `replaceHook` where a hooker is swapped | 1–2 h | Every hook log line carries its feature ID; no behavior change on API 101 |
-| 2 | Companion status card: hooked Instagram processes via `getRunningTargets` | 1–2 h | Card shows running targets on API 102, hides the row on API 101 |
-| 3 | `detach()` when every feature is off, re-attach on the next launch | ~1 h | Instagram runs unhooked with all features off; enabling a feature takes effect after a restart |
+| 0 ✅ | Log the framework's API version at module load and show it in the companion; confirm whether the test device's Vector supports API 102 | < 1 h | Done: logged at load, shown on the status card; Vector 2.2 reports API 102 |
+| 1 ✅ | Hook IDs through `HookBridge` for every hook install (callback class + identity, so re-installing the same callback replaces instead of stacking); `replaceHook` is not needed, no hooker is swapped | 1–2 h | Done: 192 hooks installed with IDs on the test device, no behavior change |
+| 2 ✅ | Companion status card: framework, API level and hooked Instagram processes via `getRunningTargets`; a "restart Instagram" action when a process runs stale module code | 1–2 h | Done: card shows "Vector 2.2 · API 102 · Active in Instagram"; the stale warning needs a `versionCode` bump to show |
+| 3 ✅ | `detach()` from package-load events once all hooks are installed, and at once in secondary processes (`:fbns`). `detach()` does not remove hooks, so "unhook when every feature is off" would need explicit unhooking and is not done | ~1 h | Done: detach logged in both processes; hooks keep working afterwards |
 | 4 | Hot reload design: inventory the 105 mutable static fields in `mods/`, the 9 broadcast receivers, views injected into Instagram, open sheets and DexKit handles; decide what goes into the saved-state `Bundle` | 2–3 h | Written inventory and design note |
 | 5 | Hot reload implementation: `onHotReloading` saves state and tears down receivers/views, `onHotReloaded` restores it; companion "Reload in Instagram" action through `hotReloadModule` | 4–7 h | Reload on a device keeps settings, hidden chats, unsent log and open features; no duplicate receivers, hooks or views; repeated reloads do not grow memory |
 
-Steps 0–3 take about half a day and are low risk. Steps 4–5 take about one and a half to two days
+Steps 0–3 took about half a day. Steps 4–5 take about one and a half to two days
 and carry most of the risk; their main benefit is development speed (no Instagram restart per
 build), so they are done only when that is needed.
 
@@ -512,6 +516,7 @@ Every test also covers normal Instagram behavior with the feature on and off.
 | Media | Photo, video, reel, story, carousel, profile picture, audio muxing, naming, SAF/default folder |
 | Helpers | Caption/comment copy (including without hashtags), external links, mention/follow indicators, autoplay and double-tap preferences |
 | Extras | Airplane mode (live toggle), story posting time, Reels tap-pause/auto-scroll/scroll lock, swipe-to-camera, share-sheet group, unlimited accounts, startup tab, share domain |
+| Section 17 additions | [Per-feature scenarios, implementation limits and pending device checks](docs/FEATURE_BACKLOG_STATUS.md#regression-checks) |
 | Theme/location | Theme, fonts, Dynamic Colors; location picker, recent places, spoofing without the real permission, and their effect in Instagram |
 | Developer settings | JSON import/export, broken/incompatible files and unauthorized calls |
 
@@ -637,7 +642,7 @@ therefore kept separate from language conversions.
 | Order | Work | Prerequisite | Concrete output |
 | --- | --- | --- | --- |
 | 1 | Baseline commit and feature inventory | Scope of the committed features clear | Baseline/test matrix |
-| 2 | API 102 steps 0–1 (framework version, hook IDs) | Baseline recorded | Version shown in the companion, hook IDs in logs |
+| 2 | ~~API 102 steps 0–1~~ (done) | — | Framework version on the status card, hook IDs |
 | 3 | Kotlin build support | Phase 0 done | Version catalog, built-in Kotlin, JVM target, mixed-language verification |
 | 4 | Pure-logic pilot | Phase 1 device/CI gate | Small Kotlin component and Java compatibility tests |
 | 5 | First companion screen | Successful pilot | Kotlin screen with XML kept, lifecycle verification |
@@ -646,7 +651,7 @@ therefore kept separate from language conversions.
 | 8 | Backup/restore | Data fixtures ready | Compatibility and broken-data tests |
 | 9 | Download coordination | Service/FGS test devices ready | Bounded concurrency, cancel, error and output tests |
 | 10 | Settings/IPC adapters | Inventory and contracts ready | Typed boundaries and end-to-end sync verification |
-| 11 | API 102 steps 2–3 (running targets, detach) | Step 0 confirms an API 102 framework | Status card row, detach verified on device |
+| 11 | ~~API 102 steps 2–3~~ (done) | — | Running targets on the status card, detach verified on device |
 | 12 | Stabilization | Related phases done | Measurement report, prerelease, stable release decision |
 
 API 102 steps 4–5 (hot reload) are scheduled only when development speed makes them worth their
@@ -690,18 +695,130 @@ Decisions to settle before implementation:
 - [ ] Test devices and the limits of the support claim.
 - [ ] Test/stable signing keys and the `versionCode` strategy.
 - [ ] Measurement thresholds, release test period and owners.
-- [ ] Whether the test device's framework supports API 102, and whether hot reload is worth doing.
+- [x] The test device's framework supports API 102 (Vector 2.2).
+- [ ] Whether hot reload is worth doing.
 
 Ordinary implementation details beyond these decisions follow the existing architecture and
 contributing rules. When a new architecture choice comes up, its reasoning, alternatives and impact
 go into a short decision record.
 
-## 17. References
+## 17. Instagram feature backlog
+
+Implementation progress (30 September 2026): see [feature status and regression cases](docs/FEATURE_BACKLOG_STATUS.md).
+This is an implementation branch, not a claim that every item below is shipped or device-verified.
+New independent policy and media code uses Kotlin; existing hook integration stays Java.
+
+A third, independent track: Instagram feature ideas collected from the
+[upstream issue tracker](https://github.com/ReSo7200/InstaEclipse/issues) (open enhancement
+issues #219–#251, checked 29 September 2026) and from the Instagram patches in
+[crimera/piko](https://github.com/crimera/piko) (Morphe patches for X and Instagram). Piko patches
+the APK statically, so its patches are a list of proven ideas and target areas, not code to copy:
+every item here is reimplemented as a runtime hook, with the lookup rules, feature flag, status
+tracker entry and regression row that every InstaEclipse hook needs. Feature work never shares a
+PR with a Kotlin conversion or an API 102 step.
+
+Bug reports are not part of this track. "Piko" names the piko patch that covers the same idea,
+where one exists.
+
+### 17.1 Features requested upstream that piko already proves
+
+These have a working reference implementation, so their hook targets are known to exist in current
+Instagram builds. They are the first feature candidates.
+
+| Issue | Feature | Piko reference | Notes |
+| --- | --- | --- | --- |
+| [#223](https://github.com/ReSo7200/InstaEclipse/issues/223) | Download voice messages in DMs | `DownloadVoiceMessagePatch` | Reuse `DownloadSaveService` and its request validation. |
+| [#242](https://github.com/ReSo7200/InstaEclipse/issues/242) | Save image/GIF comments | `SaveMediaCommentPatch` | Next to the existing comment copy action (`CommentCopyHook`). |
+| [#241](https://github.com/ReSo7200/InstaEclipse/issues/241) | Hide the Notes tray in DMs | `HideNotesTrayPatch` | Belongs with `DistractionFreeUIHook`. |
+| [#239](https://github.com/ReSo7200/InstaEclipse/issues/239) | Static friendship status indicator on profiles | `FriendshipStatusIndicatorPatch` | Extends `FollowStatusHook` from a toast to a profile label. |
+| [#238](https://github.com/ReSo7200/InstaEclipse/issues/238) | Hide and reorder navigation tabs | `HideNavigationButtonsPatch` | Hide first; reorder is a separate, riskier step. |
+| [#232](https://github.com/ReSo7200/InstaEclipse/issues/232) | Exact date and time for timestamps | `CustomiseStoryTimestampPatch` | Stories already have it (`storyExactTime`); the work is extending `StoryTimestampHook` to posts, comments and DMs. |
+| [#222](https://github.com/ReSo7200/InstaEclipse/issues/222) | Visual marker for kept unsent messages | `SaveDeletedMessagesPatch`, `DeletedMessagesActivity` | Builds on `KeepUnsentMessagesHook`/`UnsentLog`. |
+
+Already shipped, so not backlog items: hiding "Create group" on the share sheet
+([#240](https://github.com/ReSo7200/InstaEclipse/issues/240), `hideShareSheetGroup`), opening
+links in the external browser ([#229](https://github.com/ReSo7200/InstaEclipse/issues/229),
+`openLinksExternally`) and watching lives anonymously (piko `ViewLiveAnonymouslyPatch`,
+`isGhostLive`). #240 and #229 are answered upstream with the existing setting and closed, unless
+the reporter shows a case the current hook misses.
+
+### 17.2 Other upstream feature requests
+
+Grouped by area; no reference implementation yet, so each needs a feasibility spike (find the
+target, check it survives two Instagram versions) before it is scheduled.
+
+- **Downloads:** audio-only download for Reels/videos
+  ([#234](https://github.com/ReSo7200/InstaEclipse/issues/234)), bulk highlight download
+  ([#250](https://github.com/ReSo7200/InstaEclipse/issues/250)), copy image to clipboard
+  ([#228](https://github.com/ReSo7200/InstaEclipse/issues/228)), background deep-link downloader
+  from the companion app ([#236](https://github.com/ReSo7200/InstaEclipse/issues/236)), media info
+  overlay with resolution and size ([#231](https://github.com/ReSo7200/InstaEclipse/issues/231)).
+- **DMs:** jump to first message ([#244](https://github.com/ReSo7200/InstaEclipse/issues/244)),
+  edit history ([#243](https://github.com/ReSo7200/InstaEclipse/issues/243)), bulk unsend
+  ([#245](https://github.com/ReSo7200/InstaEclipse/issues/245)), chat export to JSON/HTML
+  ([#225](https://github.com/ReSo7200/InstaEclipse/issues/225)), toggle for the "Hide chat" button
+  ([#221](https://github.com/ReSo7200/InstaEclipse/issues/221)).
+- **Ghost mode:** per-chat read receipt whitelist
+  ([#227](https://github.com/ReSo7200/InstaEclipse/issues/227)), selective "mark as seen" for
+  stories ([#226](https://github.com/ReSo7200/InstaEclipse/issues/226)).
+- **Video:** seekbar and playback speed for Reels and feed
+  ([#247](https://github.com/ReSo7200/InstaEclipse/issues/247)); extends `ReelsControlsHook`.
+- **Feed and text:** hide liked posts ([#249](https://github.com/ReSo7200/InstaEclipse/issues/249)),
+  auto-expand "… more" ([#246](https://github.com/ReSo7200/InstaEclipse/issues/246)), local
+  comment search ([#230](https://github.com/ReSo7200/InstaEclipse/issues/230)), translation app
+  integration ([#233](https://github.com/ReSo7200/InstaEclipse/issues/233)), like delay/undo timer
+  ([#235](https://github.com/ReSo7200/InstaEclipse/issues/235)).
+- **Profile and saved:** "Saved" tab on the profile grid
+  ([#237](https://github.com/ReSo7200/InstaEclipse/issues/237)), private folder for saved posts
+  ([#219](https://github.com/ReSo7200/InstaEclipse/issues/219)), follower/following export to CSV
+  ([#224](https://github.com/ReSo7200/InstaEclipse/issues/224)).
+- **Theming:** separate light and dark custom themes
+  ([#251](https://github.com/ReSo7200/InstaEclipse/issues/251)); fits the theme engine settings.
+- [#248](https://github.com/ReSo7200/InstaEclipse/issues/248) ("Something new") needs triage.
+
+Data export (#224, #225) and the like timer (#235) touch account data or network requests; they
+follow the security invariants in section 8 and stay local-only.
+
+### 17.3 Piko ideas without an upstream issue
+
+Candidates InstaEclipse does not have yet; each gets an issue before work starts.
+
+| Area | Piko patch | Idea |
+| --- | --- | --- |
+| Stories | `LoopStoryPatch` | Loop a story instead of advancing. |
+| Stories | `CustomiseStoryRingSizePatch` | Adjustable story ring size. |
+| Stories | `FilterStoriesPatch` | Filter stories in the tray (e.g. hide by type or account). |
+| Stories | `StoriesAudioAutoplayPatch` | Control story audio autoplay. |
+| Stories | `HideStoriesTrayPatch` | Hide the story tray on the feed. |
+| Profile | `ProfilePictureViewer` | Full-size profile picture viewer (download exists). |
+| DMs | `MarkChatAsReadPatch` | Manual "mark as read" action while ghost mode is on (compare with `GhostDMMarkAsReadHook`). |
+| Media | `ImproveImageViewingPatch` | Higher-resolution image loading. |
+| Media | `ExternalDownloaderPatch` | Hand media URLs to an external downloader. |
+| Feed | `ChangeLikeAnimationPatch` | Custom like animation. |
+| UI | `RemoveEmptyBottomSpacePatch`, `DisableOnboardingPermissionPromptsPatch` | Layout and first-run cleanups. |
+| Theme | `ComposePrismBlackPatch` | Pure black (AMOLED) for Compose-based screens; check `IgThemeEngine` coverage first. |
+| Stability | `FixNotificationRegistrationCrashPatch` | Check whether the same crash affects hooked builds. |
+| Internal | `UnlockEmployeeOptionsPatch`, `RecommendedFlagsPatch`, `HookFlagsPatch` | Extend `DevOptionsUnlockHook` with a curated flag list. |
+
+Out of scope for this track: piko's `ClonePatch` and `CustomSharingDomainPatch` (static-patch
+only), and `UnlockPlusBenefitsPatch` (paid features).
+
+### 17.4 Process
+
+- [ ] Triage: label each issue above with its priority and link it back to this section.
+- [ ] Take 17.1 items first, one per PR, each behind its own feature flag, default off.
+- [ ] Every shipped feature gets a regression row in section 9.3.
+- [ ] Re-check piko and the issue tracker when a new Instagram version is supported and update
+  this section.
+
+## 18. References
 
 - [Android — Add Kotlin to an existing app](https://developer.android.com/kotlin/add-kotlin)
 - [Kotlin — Java interoperability](https://kotlinlang.org/docs/java-interop.html)
 - [libxposed on Maven Central](https://repo.maven.apache.org/maven2/io/github/libxposed/)
 - [Morphe Patcher — how it works](https://github.com/MorpheApp/morphe-patcher)
+- [crimera/piko — Instagram patches](https://github.com/crimera/piko/tree/main/patches/src/main/kotlin/app/crimera/patches/instagram)
+- [InstaEclipse upstream issues](https://github.com/ReSo7200/InstaEclipse/issues)
 
 These links are the basis of the approach. When implementation starts, current version
 compatibility must be verified again; a version number from an example document must not be copied

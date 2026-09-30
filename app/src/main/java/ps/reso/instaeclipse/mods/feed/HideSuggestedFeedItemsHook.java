@@ -21,13 +21,23 @@ public class HideSuggestedFeedItemsHook {
     private static final String CACHE_KEY_PARSER = "FeedItemParserClass";
 
     public void install(LazyDexKit bridge, ClassLoader classLoader) {
+        try {
+            LikedPostFilter.resolve(bridge, classLoader);
+        } catch (Throwable unavailable) {
+            ModuleLog.line("(InstaEclipse | HideLikedPosts): target lookup unavailable");
+        }
         MethodHook filterHook = new MethodHook() {
             @Override
             protected void afterHookedMethod(MethodHookParam param) {
-                if (!FeatureFlags.hideSuggestionsInFeed && !FeatureFlags.hideThreadsSuggestions) return;
+                if (!FeatureFlags.hideSuggestionsInFeed && !FeatureFlags.hideThreadsSuggestions && !FeatureFlags.hideLikedPosts) return;
 
                 Object result = param.getResult();
                 if (result == null) return;
+                if (FeatureFlags.hideLikedPosts && LikedPostFilter.isLiked(result)) {
+                    param.setResult(null);
+                    return;
+                }
+                if (!FeatureFlags.hideSuggestionsInFeed && !FeatureFlags.hideThreadsSuggestions) return;
 
                 // The parsed FeedItem is a large union type — exactly one of its many
                 // optional fields is populated per server-sent unit. A real post always
@@ -134,6 +144,7 @@ public class HideSuggestedFeedItemsHook {
     // unit has scrolled into the feed by then is essentially random, so gating the status on
     // that produced a false ❌ even when the hook was installed and working correctly.
     private void markHookedForEnabledFlags() {
+        if (LikedPostFilter.isAvailable()) FeatureStatusTracker.setHooked("HideLikedPosts");
         if (FeatureFlags.hideSuggestionsInFeed) FeatureStatusTracker.setHooked("HideSuggestionsInFeed");
         if (FeatureFlags.hideThreadsSuggestions) FeatureStatusTracker.setHooked("HideThreadsSuggestions");
     }

@@ -525,4 +525,10 @@
     <string name="ig_dialog_location_current_title">Aktueller Standort</string>
     <string name="ig_dialog_location_recent">Zuletzt verwendet</string>
     <string name="ig_dialog_location_applied">Standort übernommen</string>
+    <string name="home_framework_line">%1$s %2$s · API %3$d</string>
+    <string name="home_framework_missing">Kein Xposed-Framework verbunden</string>
+    <string name="home_module_active">In Instagram aktiv</string>
+    <string name="home_module_not_running">Läuft nicht in Instagram</string>
+    <string name="home_module_stale">Instagram nutzt noch eine ältere Modulversion. Beenden erzwingen und neu öffnen.</string>
+    <string name="home_restart_instagram">Instagram neu starten</string>
 </resources>

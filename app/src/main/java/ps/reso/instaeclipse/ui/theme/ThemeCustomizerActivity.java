@@ -103,6 +103,16 @@ public class ThemeCustomizerActivity extends AppCompatActivity implements Advanc
         colorSlots.setLayoutManager(new LinearLayoutManager(this));
         colorSlots.setAdapter(slotAdapter);
 
+        com.google.android.material.button.MaterialButton modeButton = new com.google.android.material.button.MaterialButton(this);
+        modeButton.setText(R.string.ie_theme_profiles);
+        ((android.view.ViewGroup) resetButton.getParent()).addView(modeButton);
+        modeButton.setOnClickListener(v -> new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(R.string.ie_theme_profiles)
+                .setMessage(R.string.ie_theme_profiles_help)
+                .setPositiveButton(R.string.ie_theme_light, (dialog, which) -> saveModePalette("themeLightPaletteJson"))
+                .setNegativeButton(R.string.ie_theme_dark, (dialog, which) -> saveModePalette("themeDarkPaletteJson"))
+                .setNeutralButton(android.R.string.cancel, null).show());
+
         resetButton.setOnClickListener(v -> {
             workingPalette = ThemePresets.getById(1).palette.copy();
             customMode = true;
@@ -196,6 +206,15 @@ public class ThemeCustomizerActivity extends AppCompatActivity implements Advanc
         paletteIntent.putExtra("value", paletteJson);
         CommonUtils.broadcastToInstagram(this, paletteIntent);
 
+        Toast.makeText(this, R.string.theme_saved, Toast.LENGTH_SHORT).show();
+    }
+
+    private void saveModePalette(String key) {
+        String json = activePalette().copy().toJson();
+        cache().edit().putString(key, json).apply();
+        Intent update = new Intent("ps.reso.instaeclipse.ACTION_UPDATE_PREF_STRING");
+        update.putExtra("key", key); update.putExtra("value", json);
+        CommonUtils.broadcastToInstagram(this, update);
         Toast.makeText(this, R.string.theme_saved, Toast.LENGTH_SHORT).show();
     }
 

@@ -71,6 +71,33 @@
                         android:alpha="0.75"
                         android:visibility="gone" />
 
+                    <TextView
+                        android:id="@+id/framework_status_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:textAppearance="?attr/textAppearanceLabelMedium"
+                        android:textColor="?attr/colorOnPrimaryContainer"
+                        android:visibility="gone" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/stale_restart_button"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:minHeight="0dp"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:paddingTop="4dp"
+                        android:paddingBottom="4dp"
+                        android:text="@string/home_restart_instagram"
+                        android:textAppearance="?attr/textAppearanceLabelMedium"
+                        app:icon="@drawable/ic_restart"
+                        app:iconSize="16dp"
+                        app:cornerRadius="16dp"
+                        android:visibility="gone" />
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/instagram_multi_button"
                         style="@style/Widget.Material3.Button.TonalButton"

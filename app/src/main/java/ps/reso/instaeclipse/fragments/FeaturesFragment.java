@@ -972,6 +972,31 @@ public class FeaturesFragment extends Fragment {
                 createSwitch(R.drawable.ic_shield, "#30D158", getString(R.string.ig_dialog_extras_unlimited_accounts), "unlimitedAccounts")
         ));
 
+        defs.add(getString(R.string.ie_more_features));
+        defs.add(Arrays.asList(
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_profileFollowLabel), "profileFollowLabel"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_separateThemeProfiles), "separateThemeProfiles"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_searchComments), "searchComments"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_autoExpandText), "autoExpandText"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_hideOnboardingPrompts), "hideOnboardingPrompts"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_fixNotificationRegistration), "fixNotificationRegistration"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_readReceiptExceptions), "readReceiptExceptions"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_hideLikedPosts), "hideLikedPosts"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_downloadVoiceMessages), "downloadVoiceMessages"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_hideStoriesTray), "hideStoriesTray"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_hideNotesTray), "hideNotesTray"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_hideNavigationSearch), "hideNavigationSearch"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_hideNavigationReels), "hideNavigationReels"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_hideNavigationCreate), "hideNavigationCreate"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_hideNavigationDirect), "hideNavigationDirect"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_hideNavigationNews), "hideNavigationNews"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_exactTimestamps), "exactTimestamps"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_hideChatButton), "hideChatButton"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_mediaActions), "mediaActions"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_saveCommentMedia), "saveCommentMedia"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_translateComments), "translateComments"),
+                createSwitch(R.drawable.ic_tune, "#30D158", getString(R.string.ie_highResolutionImages), "highResolutionImages")
+        ));
         showMenu(getString(R.string.ig_dialog_menu_extras), defs);
         currentMenu = "extras";
     }

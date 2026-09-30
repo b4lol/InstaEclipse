@@ -517,4 +517,10 @@
     <string name="ig_dialog_location_current_title">Текущее местоположение</string>
     <string name="ig_dialog_location_recent">Недавние места</string>
     <string name="ig_dialog_location_applied">Местоположение применено</string>
+    <string name="home_framework_line">%1$s %2$s · API %3$d</string>
+    <string name="home_framework_missing">Фреймворк Xposed не подключён</string>
+    <string name="home_module_active">Активен в Instagram</string>
+    <string name="home_module_not_running">Не запущен в Instagram</string>
+    <string name="home_module_stale">Instagram всё ещё использует старую версию модуля. Остановите его принудительно и откройте снова.</string>
+    <string name="home_restart_instagram">Перезапустить Instagram</string>
 </resources>

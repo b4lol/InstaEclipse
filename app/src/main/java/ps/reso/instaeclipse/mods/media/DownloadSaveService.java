@@ -117,7 +117,7 @@ public class DownloadSaveService extends Service {
         filename = DownloadRequestValidator.sanitizeFileName(filename,
                 "instaeclipse_" + System.currentTimeMillis());
         if (username != null) username = DownloadRequestValidator.sanitizeFileName(username, null);
-        if (mimeType != null && !mimeType.startsWith("image/") && !mimeType.startsWith("video/")) {
+        if (mimeType != null && !mimeType.startsWith("image/") && !mimeType.startsWith("video/") && !mimeType.startsWith("audio/")) {
             mimeType = null;
         }
 
@@ -135,12 +135,13 @@ public class DownloadSaveService extends Service {
         final String fUrl   = url, fAudio = audioUrl, fFile = filename;
         final String fMime  = mimeType, fUser = username, fSave = saveUri;
         final boolean fUF   = usernameFolder;
+        final boolean extractAudio = intent.getBooleanExtra("extractAudio", false);
 
         new Thread(() -> {
             try {
                 SavedMedia saved = fAudio != null
                         ? downloadMergeAndSave(fUrl, fAudio, fFile, fMime, fSave, fUser, fUF)
-                        : downloadAndSave(fUrl, fFile, fMime, fSave, fUser, fUF);
+                        : downloadAndSave(fUrl, fFile, fMime, fSave, fUser, fUF, extractAudio);
                 postDoneNotification(sid, "Saved: " + saved.filename, saved.mimeType, saved.uri);
                 showToast(getString(R.string.ig_toast_file_saved, saved.filename));
             } catch (Throwable e) {
@@ -158,7 +159,7 @@ public class DownloadSaveService extends Service {
     // ── Download helpers ──────────────────────────────────────────────────────
 
     private SavedMedia downloadAndSave(String url, String filename, String mimeType,
-                                       String saveUri, String username, boolean usernameFolder)
+                                       String saveUri, String username, boolean usernameFolder, boolean extractAudio)
             throws Exception {
         File tmp = File.createTempFile("ie_dl_", ".bin", getCacheDir());
         try {
@@ -171,6 +172,15 @@ public class DownloadSaveService extends Service {
                     maybeUpdateProgress("Downloading…", 0, 0, true);
                 }
             });
+            if (extractAudio) {
+                File audio = File.createTempFile("ie_audio_", ".m4a", getCacheDir());
+                try {
+                    MediaActions.extractAudio(tmp, audio);
+                    String name = filename.replaceFirst("\\.[^.]+$", "") + ".m4a";
+                    Uri uri = writeViaSaf(audio, name, "audio/mp4", saveUri, username, usernameFolder);
+                    return new SavedMedia(uri, name, "audio/mp4");
+                } finally { audio.delete(); }
+            }
             MediaTypeDetector.Result detected = MediaTypeDetector.resolve(
                     tmp, responseType, mimeType, filename);
             ModuleLog.line("(IE|DL|Type) requested=" + mimeType + " response=" + responseType

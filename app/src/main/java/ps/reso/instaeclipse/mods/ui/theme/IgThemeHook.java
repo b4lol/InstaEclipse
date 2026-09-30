@@ -38,6 +38,7 @@ public class IgThemeHook {
     public void install(ClassLoader classLoader) {
         if (installed) return;
         try {
+            ps.reso.instaeclipse.utils.feature.FeatureStatusTracker.setHooked("SeparateThemeProfiles");
             hookResolveAttribute(classLoader);
             hookGetColor(classLoader);
             hookContextGetColor();

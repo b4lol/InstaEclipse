@@ -296,5 +296,65 @@ public class FeatureManager {
         } else {
             FeatureStatusTracker.setDisabled("DisableDoubleTapLike");
         }
+        if (FeatureFlags.hideNotesTray) {
+            FeatureStatusTracker.setEnabled("HideNotesTray", R.string.ie_hideNotesTray);
+        } else {
+            FeatureStatusTracker.setDisabled("HideNotesTray");
+        }
+        if (FeatureFlags.hideNavigationSearch || FeatureFlags.hideNavigationReels || FeatureFlags.hideNavigationCreate || FeatureFlags.hideNavigationDirect || FeatureFlags.hideNavigationNews || !FeatureFlags.navigationOrder.isEmpty()) {
+            FeatureStatusTracker.setEnabled("NavigationTabs", R.string.ie_hideNavigationSearch);
+        } else {
+            FeatureStatusTracker.setDisabled("NavigationTabs");
+        }
+        if (FeatureFlags.exactTimestamps) {
+            FeatureStatusTracker.setEnabled("ExactTimestamps", R.string.ie_exactTimestamps);
+        } else {
+            FeatureStatusTracker.setDisabled("ExactTimestamps");
+        }
+        if (FeatureFlags.hideChatButton) {
+            FeatureStatusTracker.setEnabled("HideChatButton", R.string.ie_hideChatButton);
+        } else {
+            FeatureStatusTracker.setDisabled("HideChatButton");
+        }
+        if (FeatureFlags.mediaActions) {
+            FeatureStatusTracker.setEnabled("MediaActions", R.string.ie_mediaActions);
+        } else {
+            FeatureStatusTracker.setDisabled("MediaActions");
+        }
+        if (FeatureFlags.saveCommentMedia) {
+            FeatureStatusTracker.setEnabled("SaveCommentMedia", R.string.ie_saveCommentMedia);
+        } else {
+            FeatureStatusTracker.setDisabled("SaveCommentMedia");
+        }
+        if (FeatureFlags.translateComments) {
+            FeatureStatusTracker.setEnabled("TranslateComments", R.string.ie_translateComments);
+        } else {
+            FeatureStatusTracker.setDisabled("TranslateComments");
+        }
+        if (FeatureFlags.highResolutionImages) {
+            FeatureStatusTracker.setEnabled("HighResolutionImages", R.string.ie_highResolutionImages);
+        } else {
+            FeatureStatusTracker.setDisabled("HighResolutionImages");
+        }
+        if (FeatureFlags.profileFollowLabel) FeatureStatusTracker.setEnabled("ProfileFollowLabel", R.string.ie_profileFollowLabel);
+        else FeatureStatusTracker.setDisabled("ProfileFollowLabel");
+        if (FeatureFlags.separateThemeProfiles) FeatureStatusTracker.setEnabled("SeparateThemeProfiles", R.string.ie_separateThemeProfiles);
+        else FeatureStatusTracker.setDisabled("SeparateThemeProfiles");
+        if (FeatureFlags.searchComments) FeatureStatusTracker.setEnabled("SearchComments", R.string.ie_searchComments);
+        else FeatureStatusTracker.setDisabled("SearchComments");
+        if (FeatureFlags.autoExpandText) FeatureStatusTracker.setEnabled("AutoExpandText", R.string.ie_autoExpandText);
+        else FeatureStatusTracker.setDisabled("AutoExpandText");
+        if (FeatureFlags.hideOnboardingPrompts) FeatureStatusTracker.setEnabled("HideOnboardingPrompts", R.string.ie_hideOnboardingPrompts);
+        else FeatureStatusTracker.setDisabled("HideOnboardingPrompts");
+        if (FeatureFlags.fixNotificationRegistration) FeatureStatusTracker.setEnabled("FixNotificationRegistration", R.string.ie_fixNotificationRegistration);
+        else FeatureStatusTracker.setDisabled("FixNotificationRegistration");
+        if (FeatureFlags.readReceiptExceptions) FeatureStatusTracker.setEnabled("ReadReceiptExceptions", R.string.ie_readReceiptExceptions);
+        else FeatureStatusTracker.setDisabled("ReadReceiptExceptions");
+        if (FeatureFlags.hideLikedPosts) FeatureStatusTracker.setEnabled("HideLikedPosts", R.string.ie_hideLikedPosts);
+        else FeatureStatusTracker.setDisabled("HideLikedPosts");
+        if (FeatureFlags.downloadVoiceMessages) FeatureStatusTracker.setEnabled("DownloadVoiceMessages", R.string.ie_downloadVoiceMessages);
+        else FeatureStatusTracker.setDisabled("DownloadVoiceMessages");
+        if (FeatureFlags.hideStoriesTray) FeatureStatusTracker.setEnabled("HideStoriesTray", R.string.ie_hideStoriesTray);
+        else FeatureStatusTracker.setDisabled("HideStoriesTray");
     }
 }

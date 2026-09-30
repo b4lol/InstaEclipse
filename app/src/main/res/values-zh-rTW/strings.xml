@@ -525,4 +525,10 @@
     <string name="ig_dialog_location_current_title">目前位置</string>
     <string name="ig_dialog_location_recent">最近使用的地點</string>
     <string name="ig_dialog_location_applied">已套用位置</string>
+    <string name="home_framework_line">%1$s %2$s · API %3$d</string>
+    <string name="home_framework_missing">未連接 Xposed 框架</string>
+    <string name="home_module_active">已在 Instagram 中生效</string>
+    <string name="home_module_not_running">未在 Instagram 中執行</string>
+    <string name="home_module_stale">Instagram 仍在執行舊版模組。請強制停止後重新開啟。</string>
+    <string name="home_restart_instagram">重新啟動 Instagram</string>
 </resources>

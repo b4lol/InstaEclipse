@@ -24,11 +24,13 @@ public final class IgThemeEngine {
     private static volatile SparseIntArray colorResToSlot;
     private static volatile ClassLoader hostClassLoader;
     private static volatile boolean initialized;
+    private static volatile boolean paletteNight;
 
     private IgThemeEngine() {}
 
     public static boolean isActive() {
-        return FeatureFlags.customThemeEnabled && !IgColorRemapEngine.isBypassing();
+        return FeatureFlags.customThemeEnabled && !IgColorRemapEngine.isBypassing()
+                && (!FeatureFlags.separateThemeProfiles || !ThemeSettingsHelper.modePalette().isEmpty());
     }
 
     public static boolean isInitialized() {
@@ -36,6 +38,12 @@ public final class IgThemeEngine {
     }
 
     public static IgThemePalette getActivePalette() {
+        boolean night = ThemeSettingsHelper.isNight();
+        if (paletteNight != night) {
+            paletteNight = night;
+            activePalette = null;
+            IgColorRemapEngine.invalidate();
+        }
         if (activePalette == null) {
             synchronized (IgThemeEngine.class) {
                 if (activePalette == null) activePalette = resolvePalette();
@@ -83,7 +91,7 @@ public final class IgThemeEngine {
     }
 
     public static Integer colorForAttr(int attrId) {
-        if (!FeatureFlags.customThemeEnabled || attrId == 0) return null;
+        if (!isActive() || attrId == 0) return null;
         SparseIntArray map = attrToSlot;
         if (map == null) return null;
         int slotIndex = map.get(attrId, -1);
@@ -92,7 +100,7 @@ public final class IgThemeEngine {
     }
 
     public static Integer colorForResource(int resId) {
-        if (!FeatureFlags.customThemeEnabled || resId == 0) return null;
+        if (!isActive() || resId == 0) return null;
         SparseIntArray map = colorResToSlot;
         if (map == null) return null;
         int slotIndex = map.get(resId, -1);

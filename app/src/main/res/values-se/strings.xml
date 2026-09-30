@@ -516,4 +516,10 @@
     <string name="ig_dialog_location_current_title">Aktuell plats</string>
     <string name="ig_dialog_location_recent">Senaste platser</string>
     <string name="ig_dialog_location_applied">Platsen har tillämpats</string>
+    <string name="home_framework_line">%1$s %2$s · API %3$d</string>
+    <string name="home_framework_missing">Inget Xposed-ramverk anslutet</string>
+    <string name="home_module_active">Aktiv i Instagram</string>
+    <string name="home_module_not_running">Körs inte i Instagram</string>
+    <string name="home_module_stale">Instagram kör fortfarande en äldre modulversion. Tvångsavsluta och öppna igen.</string>
+    <string name="home_restart_instagram">Starta om Instagram</string>
 </resources>

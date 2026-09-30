@@ -50,6 +50,7 @@ public class HideChatsHook {
     public void install(LazyDexKit bridge, ClassLoader classLoader) {
         installInboxFilter(bridge, classLoader);
         installHeaderButton(classLoader);
+        FeatureStatusTracker.setHooked("HideChatButton");
     }
 
     // ── 1. Inbox thread-list filter ────────────────────────────────────────────
@@ -105,7 +106,6 @@ public class HideChatsHook {
     private void installHeaderButton(ClassLoader classLoader) {
         MethodHook resume = new MethodHook() {
             @Override protected void afterHookedMethod(MethodHookParam param) {
-                if (!FeatureFlags.hideSpecificChats) return;
                 final Activity a = (Activity) param.thisObject;
                 a.runOnUiThread(() -> registerListener(a));
             }
@@ -144,6 +144,11 @@ public class HideChatsHook {
 
     private boolean tryInject(Activity activity) {
         try {
+            if (FeatureFlags.hideChatButton || !FeatureFlags.hideSpecificChats) {
+                View old = activity.getWindow().getDecorView().findViewWithTag(TAG);
+                if (old != null && old.getParent() instanceof ViewGroup parent) parent.removeView(old);
+                return true;
+            }
             View header = threadHeaderId != 0 ? activity.findViewById(threadHeaderId) : null;
             if (header == null) return false;
 

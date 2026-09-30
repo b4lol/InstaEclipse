@@ -515,4 +515,10 @@
     <string name="ig_dialog_location_current_title">الموقع الحالي</string>
     <string name="ig_dialog_location_recent">الأماكن الأخيرة</string>
     <string name="ig_dialog_location_applied">تم تطبيق الموقع</string>
+    <string name="home_framework_line">%1$s %2$s · API %3$d</string>
+    <string name="home_framework_missing">لا يوجد إطار Xposed متصل</string>
+    <string name="home_module_active">نشط في Instagram</string>
+    <string name="home_module_not_running">لا يعمل في Instagram</string>
+    <string name="home_module_stale">لا يزال Instagram يعمل بإصدار أقدم من الوحدة. أوقفه إجباريًا ثم افتحه مجددًا.</string>
+    <string name="home_restart_instagram">إعادة تشغيل Instagram</string>
 </resources>

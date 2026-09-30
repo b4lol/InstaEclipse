@@ -83,12 +83,13 @@ public class Module extends XposedModule {
     private static String moduleLibDir;
     private static String processName;
     /** Set once all hooks were installed for the current Instagram version (see installFeatureHooks). */
-    private static final String CACHE_COMPLETE_KEY = "_install_complete";
+    private static final String CACHE_COMPLETE_KEY = "_install_complete_features17_v2";
 
     @Override
     public void onModuleLoaded(@NonNull ModuleLoadedParam param) {
         HookBridge.attach(this);
         processName = param.getProcessName();
+        ModuleLog.line("(InstaEclipse): framework " + HookBridge.describeFramework() + ", process " + processName);
 
         android.content.pm.ApplicationInfo moduleInfo = getModuleApplicationInfo();
         moduleSourceDir = moduleInfo.sourceDir;
@@ -120,7 +121,10 @@ public class Module extends XposedModule {
 
         // Only Instagram's main process: secondary processes such as ":fbns" (push) never show
         // UI, yet installing every hook there cost ~2 s of CPU, a DexKit index and memory.
-        if (processName != null && !processName.equals(packageName)) return;
+        if (processName != null && !processName.equals(packageName)) {
+            detachIfSupported("secondary process " + processName);
+            return;
+        }
 
         // Hook into Instagram and its clones
         if (SUPPORTED_PACKAGES.contains(packageName)) {
@@ -279,7 +283,10 @@ public class Module extends XposedModule {
 
     private static void installExtra(String tag, HookInstaller installer) {
         try {
+            int before = HookBridge.installedHookCount();
             installer.install();
+            ModuleLog.line("(InstaEclipse | " + tag + "): installed "
+                    + (HookBridge.installedHookCount() - before) + " hook(s)");
         } catch (Throwable t) {
             ModuleLog.line("(InstaEclipse | " + tag + "): ❌ Failed to hook: " + t);
         }
@@ -413,6 +420,14 @@ public class Module extends XposedModule {
         }
 
         // Extras (ported from a JTInstagram review)
+        installExtra("HighResolutionImages", () -> new ps.reso.instaeclipse.mods.extras.HighResolutionImageHook().install(dexKitBridge, classLoader));
+        installExtra("ProfileFollowLabel", () -> new ps.reso.instaeclipse.mods.extras.ProfileFollowLabelHook().install(dexKitBridge, classLoader));
+        installExtra("AutoExpandText", () -> new ps.reso.instaeclipse.mods.extras.AutoExpandTextHook().install(classLoader));
+        installExtra("OnboardingPrompts", () -> new ps.reso.instaeclipse.mods.extras.OnboardingPromptHook().install(dexKitBridge, classLoader));
+        installExtra("NotificationRegistration", () -> new ps.reso.instaeclipse.mods.extras.NotificationRegistrationHook().install());
+        installExtra("VoiceMessageDownload", () -> new ps.reso.instaeclipse.mods.extras.VoiceMessageDownloadHook().install(dexKitBridge, classLoader));
+        installExtra("NavigationTabs", () -> new ps.reso.instaeclipse.mods.extras.NavigationTabsHook().install(dexKitBridge, classLoader));
+        installExtra("ExactTimestamps", () -> new ps.reso.instaeclipse.mods.extras.ExactTimestampHook().install());
         installExtra("UnlimitedAccounts", () -> new ps.reso.instaeclipse.mods.extras.AccountLimitHook().install(dexKitBridge, classLoader));
         installExtra("StoryTime", () -> new ps.reso.instaeclipse.mods.extras.StoryTimestampHook().install(dexKitBridge, classLoader));
         installExtra("Reels", () -> new ps.reso.instaeclipse.mods.extras.ReelsControlsHook().install(dexKitBridge, classLoader));
@@ -598,6 +613,25 @@ public class Module extends XposedModule {
         dexKitBridge.close();
         // Every installer ran to completion, so the cache holds all lookups for this version.
         DexKitCache.saveString(CACHE_COMPLETE_KEY, "1");
+        ModuleLog.line("(InstaEclipse): " + HookBridge.installedHookCount() + " hooks installed");
+        // Installed hooks stay active; this only stops further package-load callbacks, which the
+        // module ignores once Instagram's first package is hooked.
+        detachIfSupported("hooks installed");
+    }
+
+    /**
+     * API 102: stops package-load callbacks for this process. Hooks stay in place; the framework
+     * no longer calls the module entry, so in processes without hooks the module's class loader
+     * can be collected.
+     */
+    private void detachIfSupported(String reason) {
+        if (getApiVersion() < API_102) return;
+        try {
+            detach();
+            ModuleLog.line("(InstaEclipse): detached from package events (" + reason + ")");
+        } catch (Throwable t) {
+            ModuleLog.line("(InstaEclipse): detach failed: " + t);
+        }
     }
 
     /**

@@ -31,6 +31,7 @@ import java.util.List;
 
 import ps.reso.instaeclipse.R;
 import ps.reso.instaeclipse.utils.core.CommonUtils;
+import ps.reso.instaeclipse.utils.core.RemotePrefs;
 import ps.reso.instaeclipse.utils.core.Contributor;
 
 public class HomeFragment extends Fragment {
@@ -44,6 +45,11 @@ public class HomeFragment extends Fragment {
     private TextView instagramVariantText;
     private MaterialButton instagramMultiButton;
     private ImageView instagramLogo, instagramInfoIcon;
+    private TextView frameworkStatusText;
+    private MaterialButton staleRestartButton;
+    private final android.os.Handler mainHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private final java.util.concurrent.ExecutorService statusExecutor =
+            java.util.concurrent.Executors.newSingleThreadExecutor();
 
     private String activePackage;
     private List<String> installedPackages;
@@ -67,6 +73,9 @@ public class HomeFragment extends Fragment {
         instagramMultiButton = view.findViewById(R.id.instagram_multi_button);
         instagramLogo = view.findViewById(R.id.instagram_logo);
         instagramInfoIcon = view.findViewById(R.id.instagram_info_icon);
+        frameworkStatusText = view.findViewById(R.id.framework_status_text);
+        staleRestartButton = view.findViewById(R.id.stale_restart_button);
+        staleRestartButton.setOnClickListener(v -> openAppDetails(activePackage != null ? activePackage : CommonUtils.IG_PACKAGE_NAME));
 
         checkInstagramStatus();
 
@@ -83,6 +92,7 @@ public class HomeFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
+        refreshFrameworkStatus(true);
         if (contributorsScroller != null) contributorsScroller.start();
         if (specialThanksScroller != null) specialThanksScroller.start();
     }
@@ -97,8 +107,66 @@ public class HomeFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        mainHandler.removeCallbacksAndMessages(null);
         if (contributorsScroller != null) contributorsScroller.stop();
         if (specialThanksScroller != null) specialThanksScroller.stop();
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        statusExecutor.shutdownNow();
+    }
+
+    /**
+     * Framework line of the status card: name, version and API level, plus (API 102) whether the
+     * module runs in Instagram and whether Instagram still runs an older module build.
+     */
+    private void refreshFrameworkStatus(boolean retryIfUnbound) {
+        statusExecutor.execute(() -> {
+            RemotePrefs.FrameworkStatus status = RemotePrefs.frameworkStatus();
+            mainHandler.post(() -> {
+                if (!isAdded() || frameworkStatusText == null) return;
+                if (status == null && retryIfUnbound) {
+                    // The framework binds its service shortly after the app starts.
+                    mainHandler.postDelayed(() -> refreshFrameworkStatus(false), 1500);
+                }
+                bindFrameworkStatus(status);
+            });
+        });
+    }
+
+    private void bindFrameworkStatus(RemotePrefs.FrameworkStatus status) {
+        frameworkStatusText.setVisibility(View.VISIBLE);
+        staleRestartButton.setVisibility(View.GONE);
+        if (status == null) {
+            frameworkStatusText.setText(R.string.home_framework_missing);
+            return;
+        }
+        // Vector reports e.g. "2.2 (3080) 88f8e1fa-JingMatrix-Vector"; the card shows "2.2".
+        String version = status.version.trim().split("\\s+")[0];
+        StringBuilder line = new StringBuilder(getString(R.string.home_framework_line,
+                status.name, version, status.apiVersion));
+        if (status.apiVersion >= io.github.libxposed.service.XposedService.API_102) {
+            boolean active = false;
+            String main = activePackage != null ? activePackage : CommonUtils.IG_PACKAGE_NAME;
+            for (io.github.libxposed.service.HookedTarget t : status.targets) {
+                if (main.equals(t.getProcessName())) active = true;
+            }
+            line.append(" · ").append(getString(active ? R.string.home_module_active : R.string.home_module_not_running));
+            if (status.hasStaleTarget()) {
+                line.append('\n').append(getString(R.string.home_module_stale));
+                staleRestartButton.setVisibility(View.VISIBLE);
+            }
+        }
+        frameworkStatusText.setText(line);
+    }
+
+    private void openAppDetails(String pkg) {
+        Intent intent = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+        intent.setData(Uri.parse("package:" + pkg));
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
     }
 
     @SuppressLint("SetTextI18n")

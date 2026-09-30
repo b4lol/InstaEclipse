@@ -133,4 +133,32 @@ public class FeatureFlags {
     public static volatile String  customEmojiPath = "";        // path to the user-picked EmojiCompat emoji font
     public static volatile String  downloaderCustomPath = "";   // human-readable display path
     public static volatile String  downloaderCustomUri  = "";   // SAF tree URI string for actual writes
+
+    // Section 17 features: opt-in, preserving existing defaults.
+    public static volatile boolean hideNotesTray = false;
+    public static volatile boolean hideNavigationSearch = false;
+    public static volatile boolean hideNavigationReels = false;
+    public static volatile boolean hideNavigationCreate = false;
+    public static volatile boolean hideNavigationDirect = false;
+    public static volatile boolean hideNavigationNews = false;
+    public static volatile boolean exactTimestamps = false;
+    public static volatile boolean hideChatButton = false;
+    public static volatile boolean mediaActions = false;
+    public static volatile boolean saveCommentMedia = false;
+    public static volatile boolean translateComments = false;
+    public static volatile boolean highResolutionImages = false;
+    public static volatile String navigationOrder = "";
+    public static volatile boolean profileFollowLabel = false;
+    public static volatile boolean separateThemeProfiles = false;
+    public static volatile String themeLightPaletteJson = "";
+    public static volatile String themeDarkPaletteJson = "";
+    public static volatile boolean searchComments = false;
+    public static volatile boolean autoExpandText = false;
+    public static volatile boolean hideOnboardingPrompts = false;
+    public static volatile boolean fixNotificationRegistration = false;
+    public static volatile boolean readReceiptExceptions = false;
+    public static volatile String readReceiptThreadIds = "";
+    public static volatile boolean hideLikedPosts = false;
+    public static volatile boolean downloadVoiceMessages = false;
+    public static volatile boolean hideStoriesTray = false;
 }

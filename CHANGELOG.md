@@ -6,6 +6,12 @@ All notable changes to this project are documented here. Format based on
 ## [Unreleased]
 
 ### Added
+- Experimental Section 17 settings, all default off: navigation filtering/order, Notes and story-tray hiding,
+  exact timestamps, high-resolution image selection, comment media/search/text-app actions, media
+  information/image clipboard/audio extraction, voice-message download, profile follow label,
+  liked-post filtering, chat-button visibility, per-chat seen exceptions, and separate light/dark palettes.
+  Scope and unverified targets are listed in [the implementation matrix](docs/FEATURE_BACKLOG_STATUS.md).
+- Kotlin policy components with Java interoperability tests and synthetic audio-extraction device tests.
 - **Following-only feed** (Clean Feed): the home feed only shows accounts you follow, by
   forcing the feed request's `pagination_source` to `following`.
 - **Open links in external browser**: links open in the default browser instead of
@@ -30,6 +36,13 @@ All notable changes to this project are documented here. Format based on
     embed previews).
 - "Disable double-tap to like" now also covers comments and DMs; a reaction picked from the
   long-press menu still works.
+- Uses the libxposed API 102 additions when the framework supports them (checked at runtime;
+  API 101 frameworks keep working): every hook gets an ID, so installing the same hook twice on a
+  method replaces it instead of stacking; the module detaches from package events once its hooks
+  are installed, and at once in secondary processes such as `:fbns`.
+- Companion status card shows the framework (name, version, API level), whether the module is
+  active in Instagram and, when Instagram still runs an older module build, a warning with a
+  button to restart it.
 - `ROADMAP.md` (English): plan for a gradual Java/Kotlin hybrid migration and for adopting the
   libxposed API 102 additions (hook IDs, running targets, detach, hot reload).
 
@@ -65,6 +78,7 @@ All notable changes to this project are documented here. Format based on
 - AGP 9.4.1 and Gradle 9.8.0 (wrapper with a pinned SHA-256); `compileSdk` 37, required by
   libxposed service 102. `targetSdk` stays 36.
 - `app/build.gradle` uses Groovy assignment syntax (`prop = value`), required before Gradle 10.
+- Java 21 source/target (was 17); CI builds with JDK 21.
 
 ### Changed — Xposed API
 - **Migrated from the legacy Xposed API (82) to the modern libxposed API 101.** The module now

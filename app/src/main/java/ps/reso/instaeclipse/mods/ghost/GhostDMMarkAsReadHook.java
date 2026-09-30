@@ -80,6 +80,7 @@ public class GhostDMMarkAsReadHook {
 
         ghostBtn.setLayoutParams(lp);
         ghostBtn.setOnClickListener(v -> triggerSeenLogic(parent));
+        ghostBtn.setOnLongClickListener(v -> ReadReceiptExceptions.prompt(ctx));
 
         parent.post(() -> {
             parent.addView(ghostBtn, 3);

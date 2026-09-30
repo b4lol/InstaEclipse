@@ -447,7 +447,7 @@ public class CommentCopyHook {
     private static final MethodHook SHOW_MENU_HOOK = new MethodHook() {
         @Override
         protected void beforeHookedMethod(MethodHookParam param) {
-            if (!FeatureFlags.enableCopyComment) return;
+            if (!FeatureFlags.enableCopyComment && !FeatureFlags.saveCommentMedia && !FeatureFlags.translateComments && !FeatureFlags.searchComments) return;
             try {
                 Activity ctx = currentActivity;
                 if (ctx == null) return;
@@ -464,14 +464,100 @@ public class CommentCopyHook {
                 if (comment == null) return;
 
                 String text = findLongestTextField(comment);
-                if (text == null || text.trim().isEmpty()) return;
-
-                showCopyPopup(ctx, text.trim());
+                if (FeatureFlags.saveCommentMedia || FeatureFlags.translateComments || FeatureFlags.searchComments) {
+                    java.util.List<String> urls = FeatureFlags.saveCommentMedia
+                            ? ps.reso.instaeclipse.mods.media.CommentMediaResolver.urls(comment)
+                            : java.util.Collections.emptyList();
+                    showCommentActions(ctx, text, urls, heldValue, comment.getClass());
+                } else if (text != null && !text.trim().isEmpty()) showCopyPopup(ctx, text.trim());
             } catch (Throwable t) {
                 ModuleLog.line("(InstaEclipse | CopyComment): ❌ hook body – " + t);
             }
         }
     };
+
+    private static void showCommentActions(Activity ctx, String text, java.util.List<String> urls, Object snapshot, Class<?> commentType) {
+        java.util.List<String> labels = new java.util.ArrayList<>();
+        java.util.List<Runnable> actions = new java.util.ArrayList<>();
+        if (text != null && !text.isBlank() && FeatureFlags.enableCopyComment) {
+            labels.add(I18n.t(ctx, R.string.ig_comment_copy_title));
+            actions.add(() -> showCopyPopup(ctx, text));
+        }
+        if (text != null && !text.isBlank() && FeatureFlags.translateComments) {
+            labels.add(I18n.t(ctx, R.string.ie_share_text));
+            actions.add(() -> {
+                try {
+                    android.content.Intent intent = new android.content.Intent(android.content.Intent.ACTION_PROCESS_TEXT)
+                            .setType("text/plain")
+                            .putExtra(android.content.Intent.EXTRA_PROCESS_TEXT, text)
+                            .putExtra(android.content.Intent.EXTRA_PROCESS_TEXT_READONLY, true);
+                    ctx.startActivity(android.content.Intent.createChooser(intent, I18n.t(ctx, R.string.ie_share_text)));
+                } catch (android.content.ActivityNotFoundException ignored) {
+                    android.widget.Toast.makeText(ctx, I18n.t(ctx, R.string.ie_no_text_app),
+                            android.widget.Toast.LENGTH_SHORT).show();
+                }
+            });
+            FeatureStatusTracker.setHooked("TranslateComments");
+        }
+        if (!urls.isEmpty() && FeatureFlags.saveCommentMedia) {
+            labels.add(I18n.t(ctx, R.string.ie_download));
+            actions.add(() -> ps.reso.instaeclipse.mods.media.FeedVideoDownloadHook
+                    .showPostDownloadDialog(ctx, urls, null, null, 0));
+            FeatureStatusTracker.setHooked("SaveCommentMedia");
+        }
+        if (FeatureFlags.searchComments) {
+            labels.add(I18n.t(ctx, R.string.ie_searchComments));
+            actions.add(() -> showCommentSearch(ctx, snapshot, commentType));
+        }
+        if (!actions.isEmpty()) MAIN.post(() -> {
+            if (!ctx.isFinishing()) new android.app.AlertDialog.Builder(ctx)
+                    .setItems(labels.toArray(new String[0]), (d, which) -> actions.get(which).run())
+                    .setNegativeButton(android.R.string.cancel, null).show();
+        });
+    }
+
+    private static void showCommentSearch(Activity ctx, Object snapshot, Class<?> type) {
+        java.util.List<String> texts = new java.util.ArrayList<>();
+        collectCommentTexts(snapshot, type, 0, java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>()), texts);
+        EditText input = new EditText(ctx);
+        input.setSingleLine(true);
+        input.setHint(I18n.t(ctx, R.string.ie_searchComments));
+        new android.app.AlertDialog.Builder(ctx).setTitle(I18n.t(ctx, R.string.ie_searchComments))
+                .setMessage(I18n.t(ctx, R.string.ie_loaded_comments_only))
+                .setView(input).setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(android.R.string.search_go, (dialog, which) -> {
+                    java.util.List<String> found = ps.reso.instaeclipse.features.CommentSearchPolicy.search(texts, input.getText().toString());
+                    new android.app.AlertDialog.Builder(ctx).setTitle(I18n.t(ctx, R.string.ie_searchComments))
+                            .setItems(found.toArray(new String[0]), (d, i) -> showCopyPopup(ctx, found.get(i)))
+                            .setPositiveButton(android.R.string.ok, null).show();
+                    FeatureStatusTracker.setHooked("SearchComments");
+                }).show();
+    }
+
+    private static void collectCommentTexts(Object obj, Class<?> type, int depth,
+            java.util.Set<Object> seen, java.util.List<String> out) {
+        if (obj == null || depth > 5 || seen.size() >= 1000 || out.size() >= 500 || !seen.add(obj)) return;
+        if (type.isInstance(obj)) {
+            String text = findLongestTextField(obj);
+            if (text != null && !text.isBlank()) out.add(text);
+            return;
+        }
+        if (obj instanceof java.util.Collection<?> collection) {
+            for (Object value : collection) collectCommentTexts(value, type, depth + 1, seen, out);
+            return;
+        }
+        if (obj instanceof java.util.Map<?, ?> map) {
+            for (Object value : map.values()) collectCommentTexts(value, type, depth + 1, seen, out);
+            return;
+        }
+        String name = obj.getClass().getName();
+        if (!name.startsWith("X.") && !name.startsWith("com.instagram.comments.")) return;
+        for (Field field : obj.getClass().getDeclaredFields()) {
+            if (java.lang.reflect.Modifier.isStatic(field.getModifiers()) || field.getType().isPrimitive()) continue;
+            try { field.setAccessible(true); collectCommentTexts(field.get(obj), type, depth + 1, seen, out); }
+            catch (ReflectiveOperationException | RuntimeException ignored) {}
+        }
+    }
 
     // ── Comment text extraction from the resolved model ─────────────────────────
 

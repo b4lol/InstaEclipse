@@ -546,6 +546,10 @@ public class ReelDownloadHook {
 
         String videoUrl = FeedVideoDownloadHook.bestVideoUrlFromMedia(media);
 
+        if (videoUrl != null && FeatureFlags.mediaActions) {
+            FeedVideoDownloadHook.showPostDownloadDialog(ctx, java.util.List.of(videoUrl), username, mediaId, 0);
+            return;
+        }
         if (videoUrl != null) {
             final String fn        = FeedVideoDownloadHook.buildFilename(username, "reel", mediaId, true);
             final String finalUrl  = videoUrl;

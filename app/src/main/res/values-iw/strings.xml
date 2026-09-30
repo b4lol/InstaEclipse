@@ -548,4 +548,10 @@
     <string name="ig_dialog_location_current_title">מיקום נוכחי</string>
     <string name="ig_dialog_location_recent">מקומות אחרונים</string>
     <string name="ig_dialog_location_applied">המיקום הוחל</string>
+    <string name="home_framework_line">%1$s %2$s · API %3$d</string>
+    <string name="home_framework_missing">אין מסגרת Xposed מחוברת</string>
+    <string name="home_module_active">פעיל ב-Instagram</string>
+    <string name="home_module_not_running">לא פועל ב-Instagram</string>
+    <string name="home_module_stale">Instagram עדיין מריץ גרסה ישנה של המודול. עצור בכוח ופתח מחדש.</string>
+    <string name="home_restart_instagram">הפעל מחדש את Instagram</string>
 </resources>

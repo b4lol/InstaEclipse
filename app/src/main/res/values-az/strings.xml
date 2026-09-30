@@ -519,4 +519,10 @@
     <string name="ig_dialog_location_current_title">Cari məkan</string>
     <string name="ig_dialog_location_recent">Son məkanlar</string>
     <string name="ig_dialog_location_applied">Məkan tətbiq edildi</string>
+    <string name="home_framework_line">%1$s %2$s · API %3$d</string>
+    <string name="home_framework_missing">Qoşulmuş Xposed framework yoxdur</string>
+    <string name="home_module_active">Instagram-da aktivdir</string>
+    <string name="home_module_not_running">Instagram-da işləmir</string>
+    <string name="home_module_stale">Instagram hələ köhnə modul versiyası ilə işləyir. Məcburi dayandırıb yenidən açın.</string>
+    <string name="home_restart_instagram">Instagram-ı yenidən başlat</string>
 </resources>

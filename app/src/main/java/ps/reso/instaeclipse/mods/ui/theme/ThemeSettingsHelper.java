@@ -16,7 +16,20 @@ public final class ThemeSettingsHelper {
         return presetId == CUSTOM_PRESET_ID;
     }
 
+    public static boolean isNight() {
+        android.content.Context ctx = ps.reso.instaeclipse.hook.HostApp.get();
+        android.content.res.Resources res = ctx == null ? android.content.res.Resources.getSystem() : ctx.getResources();
+        return (res.getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    public static String modePalette() {
+        return isNight() ? FeatureFlags.themeDarkPaletteJson : FeatureFlags.themeLightPaletteJson;
+    }
+
     public static IgThemePalette resolveEffectivePalette() {
+        if (FeatureFlags.separateThemeProfiles && !modePalette().isEmpty())
+            return IgThemePalette.fromJson(modePalette());
         return resolveEffectivePalette(FeatureFlags.themePresetId, FeatureFlags.themePaletteJson);
     }
 

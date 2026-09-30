@@ -113,11 +113,15 @@ public final class IgColorRemapEngine {
     }
 
     public static boolean isReady() {
+        ensureBuilt(ps.reso.instaeclipse.hook.HostApp.get());
         return built && rgbTable != null;
     }
 
     public static void ensureBuilt(Context context) {
-        if (built || context == null || !IgThemeEngine.isActive()) return;
+        if (context == null || !IgThemeEngine.isActive()) return;
+        // Resolve the configuration before consulting the cache: a mode change invalidates it.
+        IgThemeEngine.getActivePalette();
+        if (built) return;
         synchronized (IgColorRemapEngine.class) {
             if (built) return;
             buildTable(context);
@@ -129,6 +133,7 @@ public final class IgColorRemapEngine {
 
     public static int remap(int color) {
         if (!IgThemeEngine.isActive() || isBypassing() || color == 0) return color;
+        ensureBuilt(ps.reso.instaeclipse.hook.HostApp.get());
         SparseIntArray exact = exactTable;
         SparseIntArray rgb = rgbTable;
         if (rgb == null) return color;
