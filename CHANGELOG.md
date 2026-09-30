@@ -5,6 +5,12 @@ All notable changes to this project are documented here. Format based on
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-09-30
+
+- Promote the changes from `test` to `main` and publish a release build (versionCode 21).
+- Includes the changes listed under 0.7.0-test.4; experimental feature limitations remain documented
+  in `docs/FEATURE_BACKLOG_STATUS.md`.
+
 ## [0.7.0-test.4] - 2026-09-30
 
 ### Added
